@@ -77,6 +77,37 @@ export { useSessions, useSessionHistory, useSessionQueue } from './use-sessions'
 
 // Git
 export { useGitDiffs } from './use-git';
+export {
+  useBranches,
+  useCurrentBranch,
+  useRemotes,
+  useCheckoutBranch,
+  useCreateBranch,
+  useDeleteBranch,
+  useRenameBranch,
+  useMergeBranch,
+  useRebaseBranch,
+  usePullChanges,
+  usePushChanges,
+  useFetchFromRemote,
+  useAddRemote,
+  useRemoveRemote,
+  useUpdateRemote,
+  useSetBranchUpstream,
+} from './use-branches';
+export {
+  useGhInstalled,
+  usePullRequests,
+  usePullRequest,
+  usePullRequestChecks,
+  useCreatePullRequest,
+  useClosePullRequest,
+  useMergePullRequest,
+  useCommentOnPullRequest,
+  useCheckoutPullRequest,
+  useGeneratePRTitle,
+  useGeneratePRDescription,
+} from './use-pull-requests';
 
 // Pipeline
 export { usePipelineConfig } from './use-pipeline';

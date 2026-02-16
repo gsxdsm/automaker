@@ -3,7 +3,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Wand2, GitBranch, ClipboardCheck, RefreshCw } from 'lucide-react';
+import { Wand2, GitBranch, ClipboardCheck, RefreshCw, ListTree } from 'lucide-react';
 import { UsagePopover } from '@/components/usage-popover';
 import { useAppStore } from '@/store/app-store';
 import { useSetupStore } from '@/store/setup-store';
@@ -41,6 +41,8 @@ interface BoardHeaderProps {
   // View toggle props
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  // Worktree management dialog
+  onOpenWorktreeManagementDialog?: () => void;
 }
 
 // Shared styles for header control containers
@@ -66,6 +68,7 @@ export function BoardHeader({
   onRefreshBoard,
   viewMode,
   onViewModeChange,
+  onOpenWorktreeManagementDialog,
 }: BoardHeaderProps) {
   const claudeAuthStatus = useSetupStore((state) => state.claudeAuthStatus);
   const skipVerificationInAutoMode = useAppStore((state) => state.skipVerificationInAutoMode);
@@ -216,6 +219,22 @@ export function BoardHeader({
               addFeatureUseSelectedWorktreeBranch={addFeatureUseSelectedWorktreeBranch}
               onAddFeatureUseSelectedWorktreeBranchChange={setAddFeatureUseSelectedWorktreeBranch}
             />
+            {onOpenWorktreeManagementDialog && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-6 w-6"
+                    onClick={onOpenWorktreeManagementDialog}
+                    aria-label="Manage worktrees"
+                  >
+                    <ListTree className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Manage all worktrees</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         )}
 

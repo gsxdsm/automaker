@@ -10,7 +10,8 @@ export type ViewMode =
   | 'running-agents'
   | 'terminal'
   | 'wiki'
-  | 'ideation';
+  | 'ideation'
+  | 'git';
 
 export type ThemeMode =
   // Special modes
@@ -144,6 +145,7 @@ export interface KeyboardShortcuts {
   projectSettings: string;
   terminal: string;
   files: string;
+  git: string;
   ideation: string;
   notifications: string;
   githubIssues: string;

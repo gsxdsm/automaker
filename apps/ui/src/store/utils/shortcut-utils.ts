@@ -89,6 +89,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcuts = {
   projectSettings: 'Shift+S',
   terminal: 'T',
   files: 'F',
+  /** Git view navigation - uses Shift modifier to avoid conflict with GitHub Issues (G) */
+  git: 'Shift+G',
   ideation: 'I',
   notifications: 'X',
   githubIssues: 'G',

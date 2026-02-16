@@ -6,6 +6,9 @@ import { createLogger } from '@automaker/utils';
 import { spawnProcess } from '@automaker/platform';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import * as secureFs from '../../lib/secure-fs.js';
+import { copyFile } from 'fs/promises';
 import { getErrorMessage as getErrorMessageShared, createLogError } from '../common.js';
 
 const logger = createLogger('Worktree');
@@ -206,5 +209,174 @@ export async function ensureInitialCommit(
         `Failed to create initial git commit. Please commit manually and retry. ${reason}`
       );
     }
+  }
+}
+
+// ============================================================================
+// Branch Name Formatting
+// ============================================================================
+
+/**
+ * Format branch name with template prefix and optional issue number
+ * @param template - Branch template prefix (e.g., 'feature/', 'bugfix/')
+ * @param branchName - The base branch name
+ * @param issueNumber - Optional issue/PR number to include
+ * @returns Formatted branch name
+ *
+ * @example
+ * formatBranchName('feature/', 'user-auth', '123') // 'feature/123-user-auth'
+ * formatBranchName('bugfix/', 'login-error') // 'bugfix/login-error'
+ */
+export function formatBranchName(
+  template: string,
+  branchName: string,
+  issueNumber?: string
+): string {
+  // Ensure template ends with /
+  const prefix = template.endsWith('/') ? template : `${template}/`;
+  const sanitizedBranch = branchName.trim().replace(/\s+/g, '-');
+
+  if (issueNumber && issueNumber.trim()) {
+    return `${prefix}${issueNumber.trim()}-${sanitizedBranch}`;
+  }
+  return `${prefix}${sanitizedBranch}`;
+}
+
+// ============================================================================
+// File Copy Utilities for Worktrees
+// ============================================================================
+
+/**
+ * Copy specified files from main project to worktree
+ * @param projectPath - Path to the main project
+ * @param worktreePath - Path to the worktree
+ * @param fileCopySettings - Settings for which files to copy
+ */
+export async function copyFilesToWorktree(
+  projectPath: string,
+  worktreePath: string,
+  fileCopySettings: { copyEnvFile?: boolean; customFiles?: string[] } = {}
+): Promise<void> {
+  const { copyEnvFile = true, customFiles = [] } = fileCopySettings;
+  const copiedFiles: string[] = [];
+
+  try {
+    // Copy .env file if requested and it exists
+    if (copyEnvFile) {
+      const envPath = path.join(projectPath, '.env');
+      try {
+        await secureFs.access(envPath);
+        const envDestPath = path.join(worktreePath, '.env');
+        await copyFile(envPath, envDestPath);
+        copiedFiles.push('.env');
+        logger.info(`[Worktree] Copied .env to worktree`);
+      } catch {
+        // .env doesn't exist, skip silently
+      }
+    }
+
+    // Copy custom files if specified
+    for (const file of customFiles) {
+      // Security check: prevent path traversal
+      const resolvedFile = path.resolve(projectPath, file);
+      if (!resolvedFile.startsWith(projectPath)) {
+        logger.warn(`[Worktree] Skipping file outside project path: ${file}`);
+        continue;
+      }
+
+      try {
+        await secureFs.access(resolvedFile);
+        const destPath = path.join(worktreePath, path.basename(file));
+        await copyFile(resolvedFile, destPath);
+        copiedFiles.push(file);
+        logger.info(`[Worktree] Copied ${file} to worktree`);
+      } catch {
+        // File doesn't exist, skip silently
+      }
+    }
+
+    if (copiedFiles.length > 0) {
+      logger.info(
+        `[Worktree] Copied ${copiedFiles.length} file(s) to worktree: ${copiedFiles.join(', ')}`
+      );
+    }
+  } catch (error) {
+    logger.error(`[Worktree] Error copying files to worktree:`, error);
+    // Don't throw - file copy failures shouldn't prevent worktree creation
+  }
+}
+
+// ============================================================================
+// Post-Creation Actions
+// ============================================================================
+
+/**
+ * Run post-creation actions for a worktree
+ * @param worktreePath - Path to the worktree
+ * @param actions - Actions to run
+ */
+export async function runPostCreationActions(
+  worktreePath: string,
+  actions: { installDependencies?: boolean; runSetupScript?: boolean }
+): Promise<void> {
+  const { installDependencies = false, runSetupScript: runScript = false } = actions;
+
+  if (!installDependencies && !runScript) {
+    return;
+  }
+
+  logger.info(`[Worktree] Running post-creation actions for ${worktreePath}`);
+
+  // Detect package manager
+  let packageManager: string | null = null;
+  if (installDependencies) {
+    const managers = ['pnpm', 'yarn', 'npm'];
+    for (const manager of managers) {
+      try {
+        const lockFile = path.join(
+          worktreePath,
+          manager === 'npm' ? 'package-lock.json' : `${manager}-lock.yaml`
+        );
+        await secureFs.access(lockFile);
+        packageManager = manager;
+        break;
+      } catch {
+        // Check next
+      }
+    }
+    // Fallback: check if package.json exists
+    if (!packageManager) {
+      try {
+        await secureFs.access(path.join(worktreePath, 'package.json'));
+        packageManager = 'npm'; // default to npm
+      } catch {
+        // Not a node project
+      }
+    }
+  }
+
+  // Install dependencies
+  if (installDependencies && packageManager) {
+    try {
+      logger.info(`[Worktree] Installing dependencies with ${packageManager}...`);
+      const result = await spawnProcess({
+        command: packageManager,
+        args: ['install', '--silent'],
+        cwd: worktreePath,
+      });
+      if (result.exitCode === 0) {
+        logger.info(`[Worktree] Dependencies installed successfully`);
+      } else {
+        logger.warn(`[Worktree] Dependency installation failed: ${result.stderr}`);
+      }
+    } catch (error) {
+      logger.error(`[Worktree] Error installing dependencies:`, error);
+    }
+  }
+
+  // Run setup script - this is handled by the init-script-service
+  // The create.ts handler already calls runInitScript, so we just log here
+  if (runScript) {
+    logger.info(`[Worktree] Setup script will be executed by init-script-service`);
   }
 }

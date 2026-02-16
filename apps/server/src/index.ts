@@ -68,6 +68,7 @@ import { createCodexRoutes } from './routes/codex/index.js';
 import { CodexUsageService } from './services/codex-usage-service.js';
 import { CodexAppServerService } from './services/codex-app-server-service.js';
 import { CodexModelCacheService } from './services/codex-model-cache-service.js';
+import { getGitStateService } from './services/git-state-service.js';
 import { createZaiRoutes } from './routes/zai/index.js';
 import { ZaiUsageService } from './services/zai-usage-service.js';
 import { createGeminiRoutes } from './routes/gemini/index.js';
@@ -344,6 +345,9 @@ const zaiUsageService = new ZaiUsageService();
 const mcpTestService = new MCPTestService(settingsService);
 const ideationService = new IdeationService(events, settingsService, featureLoader);
 
+// Initialize Git State Service with event emitter for real-time git state updates
+const gitStateService = getGitStateService(events, { cacheTTL: 5000 });
+
 // Initialize DevServerService with event emitter for real-time log streaming
 const devServerService = getDevServerService();
 devServerService.setEventEmitter(events);
@@ -439,7 +443,7 @@ app.use(
 app.use('/api/auto-mode', createAutoModeRoutes(autoModeService));
 app.use('/api/enhance-prompt', createEnhancePromptRoutes(settingsService));
 app.use('/api/worktree', createWorktreeRoutes(events, settingsService));
-app.use('/api/git', createGitRoutes());
+app.use('/api/git', createGitRoutes(gitStateService));
 app.use('/api/models', createModelsRoutes());
 app.use('/api/spec-regeneration', createSpecRegenerationRoutes(events, settingsService));
 app.use('/api/running-agents', createRunningAgentsRoutes(autoModeService));

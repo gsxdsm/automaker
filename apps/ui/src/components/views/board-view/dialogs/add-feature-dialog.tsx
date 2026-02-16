@@ -40,7 +40,7 @@ import type {
   AgentModel,
   FeatureSchedule,
 } from '@automaker/types';
-import { supportsReasoningEffort, isClaudeModel } from '@automaker/types';
+import { supportsReasoningEffort, isClaudeModel, isAdaptiveThinkingModel } from '@automaker/types';
 import {
   PrioritySelector,
   WorkModeSelector,

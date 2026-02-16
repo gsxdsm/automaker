@@ -44,7 +44,7 @@ import type {
   IdeationAnalysisEvent,
   Notification,
 } from '@automaker/types';
-import type { Message, SessionListItem } from '@/types/electron';
+import type { Message, SessionListItem, FileStatus } from '@/types/electron';
 import type { ClaudeUsageResponse, CodexUsageResponse, GeminiUsage } from '@/store/app-store';
 import type { WorktreeAPI, GitAPI, ModelDefinition, ProviderStatus } from '@/types/electron';
 import type { ModelId, ThinkingLevel, ReasoningEffort, Feature } from '@automaker/types';
@@ -2268,6 +2268,110 @@ export class HttpApiClient implements ElectronAPI {
     getDiffs: (projectPath: string) => this.post('/api/git/diffs', { projectPath }),
     getFileDiff: (projectPath: string, filePath: string) =>
       this.post('/api/git/file-diff', { projectPath, filePath }),
+    getBranches: (projectPath: string, options?: { includeRemote?: boolean }) =>
+      this.post('/api/git/branches', { projectPath, ...options }),
+    getCurrentBranch: (projectPath: string) =>
+      this.post('/api/git/branches/current', { projectPath }),
+    checkoutBranch: (projectPath: string, branchName: string) =>
+      this.post('/api/git/branches/checkout', { projectPath, branchName }),
+    createBranch: (projectPath: string, branchName: string, startPoint?: string) =>
+      this.post('/api/git/branches/create', { projectPath, branchName, startPoint }),
+    deleteBranch: (projectPath: string, branchName: string, force?: boolean) =>
+      this.post('/api/git/branches/delete', { projectPath, branchName, force }),
+    renameBranch: (projectPath: string, newName: string, oldName?: string) =>
+      this.post('/api/git/branches/rename', { projectPath, newName, oldName }),
+    getRemotes: (projectPath: string) => this.post('/api/git/remotes/list', { projectPath }),
+    mergeBranch: (
+      projectPath: string,
+      branchName: string,
+      options?: { noCommit?: boolean; noFF?: boolean; squash?: boolean }
+    ) => this.post('/api/git/merge-rebase/merge', { projectPath, branchName, ...options }),
+    rebaseBranch: (projectPath: string, branchName: string) =>
+      this.post('/api/git/merge-rebase/rebase', { projectPath, branchName }),
+    pull: (projectPath: string, remote?: string, branch?: string, options?: { rebase?: boolean }) =>
+      this.post('/api/git/push-pull/pull', { projectPath, remote, branch, ...options }),
+    push: (
+      projectPath: string,
+      remote?: string,
+      branch?: string,
+      options?: { force?: boolean; setUpstream?: boolean }
+    ) => this.post('/api/git/push-pull/push', { projectPath, remote, branch, ...options }),
+    fetch: (projectPath: string, remote?: string) =>
+      this.post('/api/git/remotes/fetch', { projectPath, remote }),
+    addRemote: (projectPath: string, name: string, url: string) =>
+      this.post('/api/git/remotes/add', { projectPath, name, url }),
+    removeRemote: (projectPath: string, name: string) =>
+      this.post('/api/git/remotes/remove', { projectPath, name }),
+    updateRemote: (projectPath: string, name: string, url: string) =>
+      this.post('/api/git/remotes/update', { projectPath, name, url }),
+    stageFiles: (projectPath: string, paths?: string[]) =>
+      this.post('/api/git/commits/stage', { projectPath, paths }),
+    unstageFiles: (projectPath: string, paths: string[]) =>
+      this.post('/api/git/commits/unstage', { projectPath, paths }),
+    commit: (
+      projectPath: string,
+      message: string,
+      options?: { allowEmpty?: boolean; amend?: boolean; noVerify?: boolean; signOff?: boolean }
+    ) => this.post('/api/git/commits/create', { projectPath, message, ...options }),
+    discardChanges: (projectPath: string, paths: string[]) =>
+      this.post('/api/git/commits/discard', { projectPath, paths }),
+    getStatus: (projectPath: string) =>
+      this.post('/api/git/diffs', { projectPath }).then(
+        (result: { success: boolean; files?: unknown; error?: string }) => ({
+          success: result.success,
+          files: result.files as FileStatus[] | undefined,
+          error: result.error,
+        })
+      ),
+    // Stash operations
+    listStashes: (projectPath: string) =>
+      this.get(`/api/git/stash/list?repoPath=${encodeURIComponent(projectPath)}`),
+    saveStash: (projectPath: string, message?: string, includeUntracked?: boolean) =>
+      this.post('/api/git/stash/save', { repoPath: projectPath, message, includeUntracked }),
+    applyStash: (projectPath: string, index?: number) =>
+      this.post('/api/git/stash/apply', { repoPath: projectPath, index }),
+    popStash: (projectPath: string, index?: number) =>
+      this.post('/api/git/stash/pop', { repoPath: projectPath, index }),
+    dropStash: (projectPath: string, index: number) =>
+      this.post('/api/git/stash/drop', { repoPath: projectPath, index }),
+    clearStashes: (projectPath: string) =>
+      this.post('/api/git/stash/clear', { repoPath: projectPath }),
+    showStash: (projectPath: string, index?: number) =>
+      this.post('/api/git/stash/show', { repoPath: projectPath, index }),
+    getStash: (projectPath: string, index: number) =>
+      this.get(`/api/git/stash/get?repoPath=${encodeURIComponent(projectPath)}&index=${index}`),
+
+    // Pull Request operations
+    isGhInstalled: () => this.get('/api/git/pr/gh-installed'),
+    listPullRequests: (
+      projectPath: string,
+      options?: { state?: 'OPEN' | 'CLOSED' | 'MERGED' | 'ALL'; limit?: number }
+    ) => this.post('/api/git/pr/list', { repoPath: projectPath, ...options }),
+    getPullRequest: (projectPath: string, prNumber: number) =>
+      this.get(`/api/git/pr/get?repoPath=${encodeURIComponent(projectPath)}&prNumber=${prNumber}`),
+    createPullRequest: (
+      projectPath: string,
+      options: { title: string; body?: string; head?: string; base?: string; draft?: boolean }
+    ) => this.post('/api/git/pr/create', { repoPath: projectPath, ...options }),
+    closePullRequest: (projectPath: string, prNumber: number) =>
+      this.post('/api/git/pr/close', { repoPath: projectPath, prNumber }),
+    mergePullRequest: (
+      projectPath: string,
+      prNumber: number,
+      options?: { mergeMethod?: 'merge' | 'squash' | 'rebase'; comment?: string }
+    ) => this.post('/api/git/pr/merge', { repoPath: projectPath, prNumber, ...options }),
+    commentOnPullRequest: (projectPath: string, prNumber: number, comment: string) =>
+      this.post('/api/git/pr/comment', { repoPath: projectPath, prNumber, comment }),
+    getPullRequestChecks: (projectPath: string, prNumber: number) =>
+      this.get(
+        `/api/git/pr/checks?repoPath=${encodeURIComponent(projectPath)}&prNumber=${prNumber}`
+      ),
+    checkoutPullRequest: (projectPath: string, prNumber: number) =>
+      this.post('/api/git/pr/checkout', { repoPath: projectPath, prNumber }),
+    generatePRTitle: (projectPath: string, baseBranch?: string) =>
+      this.post('/api/git/pr/generate-title', { repoPath: projectPath, baseBranch }),
+    generatePRDescription: (projectPath: string, baseBranch?: string) =>
+      this.post('/api/git/pr/generate-description', { repoPath: projectPath, baseBranch }),
   };
 
   // Spec Regeneration API

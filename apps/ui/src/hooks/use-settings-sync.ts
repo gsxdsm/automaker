@@ -101,6 +101,8 @@ const SETTINGS_FIELDS_TO_SYNC = [
   'recentFolders',
   // File Editor Settings
   'fileEditorSettings',
+  // Git Editor Settings
+  'gitEditorSettings',
 ] as const;
 
 // Fields from setup store to sync

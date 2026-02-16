@@ -1409,6 +1409,423 @@ export interface GitAPI {
 
   // Get diff for a specific file in the main project
   getFileDiff: (projectPath: string, filePath: string) => Promise<FileDiffResult>;
+
+  // Branch operations
+  getBranches: (
+    projectPath: string,
+    options?: { includeRemote?: boolean }
+  ) => Promise<{
+    success: boolean;
+    branches?: Array<
+      | {
+          name: string;
+          current: boolean;
+          detached: boolean;
+          tracking?: string;
+          commit?: string;
+          message?: string;
+          ahead?: number;
+          behind?: number;
+          hasUncommittedChanges?: boolean;
+          isRemote?: boolean;
+        }
+      | {
+          // Simplified type for remote branches that may not have all fields
+          name: string;
+          current: boolean;
+          detached: boolean;
+          isRemote: boolean;
+        }
+    >;
+    error?: string;
+  }>;
+
+  getCurrentBranch: (projectPath: string) => Promise<{
+    success: boolean;
+    branch?: string;
+    error?: string;
+  }>;
+
+  checkoutBranch: (
+    projectPath: string,
+    branchName: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  createBranch: (
+    projectPath: string,
+    branchName: string,
+    startPoint?: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  deleteBranch: (
+    projectPath: string,
+    branchName: string,
+    force?: boolean
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  renameBranch: (
+    projectPath: string,
+    oldName?: string,
+    newName: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  getRemotes: (projectPath: string) => Promise<{
+    success: boolean;
+    remotes?: Array<{ name: string; fetchUrl?: string; pushUrl?: string }>;
+    error?: string;
+  }>;
+
+  mergeBranch: (
+    projectPath: string,
+    branchName: string,
+    options?: { noCommit?: boolean; noFF?: boolean; squash?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  rebaseBranch: (
+    projectPath: string,
+    branchName: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  pull: (
+    projectPath: string,
+    remote?: string,
+    branch?: string,
+    options?: { rebase?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  push: (
+    projectPath: string,
+    remote?: string,
+    branch?: string,
+    options?: { force?: boolean; setUpstream?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Fetch from remote
+  fetch: (
+    projectPath: string,
+    remote?: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Add remote
+  addRemote: (
+    projectPath: string,
+    name: string,
+    url: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Remove remote
+  removeRemote: (
+    projectPath: string,
+    name: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Update remote URL
+  updateRemote: (
+    projectPath: string,
+    name: string,
+    url: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Stage files for commit
+  stageFiles: (
+    projectPath: string,
+    paths?: string[]
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Unstage files
+  unstageFiles: (
+    projectPath: string,
+    paths: string[]
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Create a commit
+  commit: (
+    projectPath: string,
+    message: string,
+    options?: { allowEmpty?: boolean; amend?: boolean; noVerify?: boolean; signOff?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    commitHash?: string;
+  }>;
+
+  // Discard changes to files
+  discardChanges: (
+    projectPath: string,
+    paths: string[]
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  // Get git status (files with changes)
+  getStatus: (projectPath: string) => Promise<{
+    success: boolean;
+    files?: FileStatus[];
+    error?: string;
+  }>;
+
+  // Pull Request operations
+  isGhInstalled: () => Promise<{
+    success: boolean;
+    installed?: boolean;
+    error?: string;
+  }>;
+
+  listPullRequests: (
+    projectPath: string,
+    options?: {
+      state?: 'OPEN' | 'CLOSED' | 'MERGED' | 'ALL';
+      limit?: number;
+      head?: string;
+      base?: string;
+    }
+  ) => Promise<{
+    success: boolean;
+    prs?: Array<{
+      number: number;
+      title: string;
+      state: 'OPEN' | 'CLOSED' | 'MERGED';
+      author: string;
+      url: string;
+      headRefName: string;
+      baseRefName: string;
+      createdAt: string;
+      mergedAt?: string;
+      closedAt?: string;
+    }>;
+    error?: string;
+  }>;
+
+  getPullRequest: (
+    projectPath: string,
+    prNumber: number
+  ) => Promise<{
+    success: boolean;
+    pr?: {
+      number: number;
+      title: string;
+      state: 'OPEN' | 'CLOSED' | 'MERGED';
+      author: string;
+      url: string;
+      headRefName: string;
+      baseRefName: string;
+      createdAt: string;
+      mergedAt?: string;
+      closedAt?: string;
+    };
+    error?: string;
+  }>;
+
+  createPullRequest: (
+    projectPath: string,
+    options: {
+      title: string;
+      body?: string;
+      head?: string;
+      base?: string;
+      draft?: boolean;
+    }
+  ) => Promise<{
+    success: boolean;
+    pr?: {
+      number: number;
+      title: string;
+      state: 'OPEN' | 'CLOSED' | 'MERGED';
+      author: string;
+      url: string;
+      headRefName: string;
+      baseRefName: string;
+      createdAt: string;
+      mergedAt?: string;
+      closedAt?: string;
+    };
+    error?: string;
+  }>;
+
+  closePullRequest: (
+    projectPath: string,
+    prNumber: number
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  mergePullRequest: (
+    projectPath: string,
+    prNumber: number,
+    options?: {
+      mergeMethod?: 'merge' | 'squash' | 'rebase';
+      comment?: string;
+    }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  commentOnPullRequest: (
+    projectPath: string,
+    prNumber: number,
+    comment: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  getPullRequestChecks: (
+    projectPath: string,
+    prNumber: number
+  ) => Promise<{
+    success: boolean;
+    checks?: Array<{
+      name: string;
+      status: string;
+      conclusion?: string;
+      databaseId?: number;
+    }>;
+    error?: string;
+  }>;
+
+  checkoutPullRequest: (
+    projectPath: string,
+    prNumber: number
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  generatePRTitle: (
+    projectPath: string,
+    baseBranch?: string
+  ) => Promise<{
+    success: boolean;
+    title?: string;
+    error?: string;
+  }>;
+
+  generatePRDescription: (
+    projectPath: string,
+    baseBranch?: string
+  ) => Promise<{
+    success: boolean;
+    description?: string;
+    error?: string;
+  }>;
+
+  // Stash operations
+  listStashes: (projectPath: string) => Promise<{
+    success: boolean;
+    stashes?: Array<{
+      index: number;
+      ref: string;
+      hash: string;
+      message: string;
+    }>;
+    error?: string;
+  }>;
+
+  saveStash: (
+    projectPath: string,
+    message?: string,
+    includeUntracked?: boolean
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  applyStash: (
+    projectPath: string,
+    index?: number
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  popStash: (
+    projectPath: string,
+    index?: number
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  dropStash: (
+    projectPath: string,
+    index: number
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  clearStashes: (projectPath: string) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  showStash: (
+    projectPath: string,
+    index?: number
+  ) => Promise<{
+    success: boolean;
+    diff?: string;
+    error?: string;
+  }>;
+
+  getStash: (
+    projectPath: string,
+    index: number
+  ) => Promise<{
+    success: boolean;
+    stash?: {
+      index: number;
+      ref: string;
+      hash: string;
+      message: string;
+    };
+    error?: string;
+  }>;
 }
 
 // Model definition type

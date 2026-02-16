@@ -15,6 +15,7 @@ import {
   Bell,
   Settings,
   Home,
+  GitBranch,
 } from 'lucide-react';
 import type { NavSection, NavItem } from '../types';
 import type { KeyboardShortcut } from '@/hooks/use-keyboard-shortcuts';
@@ -36,6 +37,7 @@ interface UseNavigationProps {
     agent: string;
     terminal: string;
     files: string;
+    git: string;
     settings: string;
     projectSettings: string;
     ideation: string;
@@ -182,6 +184,14 @@ export function useNavigation({
       label: 'Files',
       icon: FolderOpen,
       shortcut: shortcuts.files,
+    });
+
+    // Add Git to Project section
+    projectItems.push({
+      id: 'git',
+      label: 'Git',
+      icon: GitBranch,
+      shortcut: shortcuts.git,
     });
 
     const sections: NavSection[] = [

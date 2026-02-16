@@ -77,3 +77,11 @@ export {
 
 // Cursor Permissions mutations
 export { useApplyCursorProfile, useCopyCursorConfig } from './use-cursor-permissions-mutations';
+
+// Git mutations
+export {
+  useStageFiles,
+  useUnstageFiles,
+  useCommitChanges,
+  useDiscardChanges,
+} from './use-git-mutations';

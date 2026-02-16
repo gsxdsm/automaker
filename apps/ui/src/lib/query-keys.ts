@@ -281,6 +281,27 @@ export const queryKeys = {
     /** File diff */
     fileDiff: (projectPath: string, filePath: string) =>
       ['git', 'diffs', projectPath, filePath] as const,
+    /** Branches for a project */
+    branches: (projectPath: string, includeRemote = false) =>
+      ['git', 'branches', projectPath, { includeRemote }] as const,
+    /** Current branch */
+    currentBranch: (projectPath: string) => ['git', 'current-branch', projectPath] as const,
+    /** Remotes for a project */
+    remotes: (projectPath: string) => ['git', 'remotes', projectPath] as const,
+    /** Pull requests for a project */
+    pullRequests: (projectPath: string, state?: 'OPEN' | 'CLOSED' | 'MERGED' | 'ALL') =>
+      ['git', 'pull-requests', projectPath, { state }] as const,
+    /** Single pull request */
+    pullRequest: (projectPath: string, prNumber: number) =>
+      ['git', 'pull-requests', projectPath, prNumber] as const,
+    /** Pull request checks */
+    pullRequestChecks: (projectPath: string, prNumber: number) =>
+      ['git', 'pull-requests', projectPath, prNumber, 'checks'] as const,
+    /** Stash list for a project */
+    stashes: (projectPath: string) => ['git', 'stashes', projectPath] as const,
+    /** Stash diff */
+    stashDiff: (projectPath: string, index: number) =>
+      ['git', 'stashes', projectPath, index, 'diff'] as const,
   },
 } as const;
 

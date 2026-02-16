@@ -21,6 +21,9 @@ import {
   ensureInitialCommit,
   isValidBranchName,
   execGitCommand,
+  formatBranchName,
+  copyFilesToWorktree,
+  runPostCreationActions,
 } from '../common.js';
 import { trackBranch } from './branch-tracking.js';
 import { createLogger } from '@automaker/utils';
@@ -84,10 +87,24 @@ async function findExistingWorktreeForBranch(
 export function createCreateHandler(events: EventEmitter) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectPath, branchName, baseBranch } = req.body as {
+      const {
+        projectPath,
+        branchName,
+        baseBranch,
+        branchTemplate,
+        issueNumber,
+        customPath,
+        fileCopySettings,
+        postCreationActions,
+      } = req.body as {
         projectPath: string;
         branchName: string;
-        baseBranch?: string; // Optional base branch to create from (defaults to current HEAD)
+        baseBranch?: string;
+        branchTemplate?: string;
+        issueNumber?: string;
+        customPath?: string;
+        fileCopySettings?: { copyEnvFile?: boolean; customFiles?: string[] };
+        postCreationActions?: { installDependencies?: boolean; runSetupScript?: boolean };
       };
 
       if (!projectPath || !branchName) {
@@ -98,8 +115,13 @@ export function createCreateHandler(events: EventEmitter) {
         return;
       }
 
-      // Validate branch name to prevent command injection
-      if (!isValidBranchName(branchName)) {
+      // Format branch name with template and issue number if provided
+      const formattedBranchName = branchTemplate
+        ? formatBranchName(branchTemplate, branchName, issueNumber)
+        : branchName;
+
+      // Validate formatted branch name to prevent command injection
+      if (!isValidBranchName(formattedBranchName)) {
         res.status(400).json({
           success: false,
           error:
@@ -137,32 +159,39 @@ export function createCreateHandler(events: EventEmitter) {
       await ensureInitialCommit(projectPath, gitEnv);
 
       // First, check if git already has a worktree for this branch (anywhere)
-      const existingWorktree = await findExistingWorktreeForBranch(projectPath, branchName);
+      const existingWorktree = await findExistingWorktreeForBranch(
+        projectPath,
+        formattedBranchName
+      );
       if (existingWorktree) {
         // Worktree already exists, return it as success (not an error)
         // This handles manually created worktrees or worktrees from previous runs
         logger.info(
-          `Found existing worktree for branch "${branchName}" at: ${existingWorktree.path}`
+          `Found existing worktree for branch "${formattedBranchName}" at: ${existingWorktree.path}`
         );
 
         // Track the branch so it persists in the UI
-        await trackBranch(projectPath, branchName);
+        await trackBranch(projectPath, formattedBranchName);
 
         res.json({
           success: true,
           worktree: {
             path: normalizePath(existingWorktree.path),
-            branch: branchName,
+            branch: formattedBranchName,
             isNew: false, // Not newly created
           },
         });
         return;
       }
 
-      // Sanitize branch name for directory usage
-      const sanitizedName = branchName.replace(/[^a-zA-Z0-9_-]/g, '-');
+      // Determine worktree path
+      const sanitizedName = formattedBranchName
+        .replace(/[^a-zA-Z0-9_-]/g, '-')
+        .replace(/^\/+|\/+$/g, ''); // Remove leading/trailing slashes
       const worktreesDir = path.join(projectPath, '.worktrees');
-      const worktreePath = path.join(worktreesDir, sanitizedName);
+      const worktreePath = customPath
+        ? path.join(worktreesDir, customPath)
+        : path.join(worktreesDir, sanitizedName);
 
       // Create worktrees directory if it doesn't exist
       await secureFs.mkdir(worktreesDir, { recursive: true });
@@ -170,7 +199,7 @@ export function createCreateHandler(events: EventEmitter) {
       // Check if branch exists (using array arguments to prevent injection)
       let branchExists = false;
       try {
-        await execGitCommand(['rev-parse', '--verify', branchName], projectPath);
+        await execGitCommand(['rev-parse', '--verify', formattedBranchName], projectPath);
         branchExists = true;
       } catch {
         // Branch doesn't exist
@@ -179,22 +208,25 @@ export function createCreateHandler(events: EventEmitter) {
       // Create worktree (using array arguments to prevent injection)
       if (branchExists) {
         // Use existing branch
-        await execGitCommand(['worktree', 'add', worktreePath, branchName], projectPath);
+        await execGitCommand(['worktree', 'add', worktreePath, formattedBranchName], projectPath);
       } else {
         // Create new branch from base or HEAD
         const base = baseBranch || 'HEAD';
         await execGitCommand(
-          ['worktree', 'add', '-b', branchName, worktreePath, base],
+          ['worktree', 'add', '-b', formattedBranchName, worktreePath, base],
           projectPath
         );
       }
+
+      // Copy files to worktree if requested
+      await copyFilesToWorktree(projectPath, worktreePath, fileCopySettings);
 
       // Note: We intentionally do NOT symlink .automaker to worktrees
       // Features and config are always accessed from the main project path
       // This avoids symlink loop issues when activating worktrees
 
       // Track the branch so it persists in the UI even after worktree is removed
-      await trackBranch(projectPath, branchName);
+      await trackBranch(projectPath, formattedBranchName);
 
       // Resolve to absolute path for cross-platform compatibility
       // normalizePath converts to forward slashes for API consistency
@@ -205,20 +237,32 @@ export function createCreateHandler(events: EventEmitter) {
         success: true,
         worktree: {
           path: normalizePath(absoluteWorktreePath),
-          branch: branchName,
+          branch: formattedBranchName,
           isNew: !branchExists,
         },
       });
 
-      // Trigger init script asynchronously after response
-      // runInitScript internally checks if script exists and hasn't already run
-      runInitScript({
-        projectPath,
-        worktreePath: absoluteWorktreePath,
-        branch: branchName,
-        emitter: events,
-      }).catch((err) => {
-        logger.error(`Init script failed for ${branchName}:`, err);
+      // Run post-creation actions asynchronously after response
+      (async () => {
+        try {
+          // Run init script if requested (or by default)
+          if (postCreationActions?.runSetupScript !== false) {
+            // runInitScript internally checks if script exists and hasn't already run
+            await runInitScript({
+              projectPath,
+              worktreePath: absoluteWorktreePath,
+              branch: formattedBranchName,
+              emitter: events,
+            });
+          }
+
+          // Run other post-creation actions
+          await runPostCreationActions(absoluteWorktreePath, postCreationActions || {});
+        } catch (err) {
+          logger.error(`Post-creation actions failed for ${formattedBranchName}:`, err);
+        }
+      })().catch((err) => {
+        logger.error(`Post-creation async error for ${formattedBranchName}:`, err);
       });
     } catch (error) {
       logError(error, 'Create worktree failed');

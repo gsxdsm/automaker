@@ -15,3 +15,4 @@ export { PushToRemoteDialog } from './push-to-remote-dialog';
 export { ViewWorktreeChangesDialog } from './view-worktree-changes-dialog';
 export { ExportFeaturesDialog } from './export-features-dialog';
 export { ImportFeaturesDialog } from './import-features-dialog';
+export { WorktreeManagementDialog } from './worktree-management-dialog';

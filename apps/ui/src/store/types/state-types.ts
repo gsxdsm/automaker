@@ -23,6 +23,7 @@ import type {
   ClaudeApiProfile,
   ClaudeCompatibleProvider,
   SidebarStyle,
+  GitEditorSettings,
 } from '@automaker/types';
 
 import type {
@@ -363,6 +364,9 @@ export interface AppState {
   fileEditorSaveStatus: string | null;
   // Per-project selected worktree for file browser (keyed by project path)
   fileEditorWorktreeByProject: Record<string, { path: string; branch: string } | null>;
+
+  // Git Editor Settings
+  gitEditorSettings: GitEditorSettings;
 }
 
 export interface AppActions {
@@ -833,6 +837,7 @@ export interface AppActions {
   setFileEditorAutoSave: (enabled: boolean) => void;
   setFileEditorAutoSaveInterval: (intervalMs: number) => void;
   setFileEditorSettings: (settings: Partial<FileEditorSettings>) => void;
+  setGitEditorSettings: (settings: Partial<GitEditorSettings>) => void;
   clearAllFileTabs: () => void;
   getActiveFileTab: () => OpenTab | null;
   getDirtyFileTabs: () => OpenTab[];

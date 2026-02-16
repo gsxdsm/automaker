@@ -1129,3 +1129,370 @@
   content-visibility: auto;
   contain-intrinsic-size: auto var(--perf-contain-intrinsic-size);
 }
+
+/* ========================================
+   MOBILE-SPECIFIC OPTIMIZATIONS
+   Touch targets, gestures, and viewport handling
+   ======================================== */
+
+/* Prevent zoom on input focus for mobile */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='tel'],
+  input[type='url'],
+  input[type='search'],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly tap targets (minimum 44px per iOS HIG) */
+@media (pointer: coarse) {
+  button,
+  a,
+  input[type='button'],
+  input[type='submit'],
+  input[type='reset'],
+  [role='button'],
+  [tabindex]:not([tabindex='-1']) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for small buttons in compact groups */
+  .button-group button,
+  .toolbar button,
+  button.h-8,
+  button.h-6 {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Touch manipulation for better gesture handling */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+.touch-none {
+  touch-action: none;
+}
+
+/* Prevent text selection on touch for interactive elements */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* Smooth animations for mobile interactions */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-fab-in {
+    animation: fab-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes fab-in {
+    from {
+      opacity: 0;
+      transform: scale(0.8) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out forwards;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out forwards;
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out forwards;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out forwards;
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-fab-in,
+  .animate-slide-up,
+  .animate-slide-down,
+  .animate-fade-in,
+  .animate-scale-in {
+    animation: none;
+  }
+}
+
+/* Mobile viewport adjustments for virtual keyboard */
+@supports (-webkit-touch-callout: none) {
+  /* iOS visual viewport API support */
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Prevent bounce scroll on mobile (except where desired) */
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Allow bounce scroll for specific containers */
+.allow-bounce {
+  overscroll-behavior-y: auto;
+}
+
+/* Pull-to-refresh container */
+.pull-to-refresh {
+  overscroll-behavior-y: contain;
+}
+
+/* Mobile-specific layout adjustments */
+@media (max-width: 768px) {
+  /* Reduce padding on mobile */
+  .mobile-tight {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  /* Full-width buttons on mobile */
+  .mobile-full-width {
+    width: 100%;
+  }
+
+  /* Stack flex containers on mobile */
+  .mobile-stack {
+    flex-direction: column;
+  }
+
+  /* Hide elements on mobile */
+  .mobile-hide {
+    display: none !important;
+  }
+
+  /* Show elements only on mobile */
+  .mobile-only {
+    display: block !important;
+  }
+
+  /* Responsive text sizing */
+  .mobile-text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .mobile-text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+}
+
+/* Desktop-only elements */
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+
+  .desktop-only {
+    display: block !important;
+  }
+}
+
+/* Swipeable item styles */
+.swipeable-item {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.swipeable-item-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: var(--muted);
+  z-index: 0;
+}
+
+.swipeable-item-content {
+  position: relative;
+  z-index: 1;
+  background: var(--background);
+  transition: transform 0.2s ease-out;
+}
+
+/* Bottom sheet safe area for notched devices */
+.bottom-sheet-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* FAB safe area */
+.fab-safe {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+}
+
+/* Collapsible panel smooth transitions */
+.collapsible-panel {
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.collapsible-panel[data-state='open'] {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.collapsible-panel[data-state='closed'] {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Mobile context menu simplification */
+@media (max-width: 768px) {
+  .context-menu {
+    min-width: 200px;
+    max-width: 90vw;
+  }
+
+  .context-menu-item {
+    padding: 0.75rem 1rem;
+    min-height: 48px;
+  }
+
+  /* Larger touch targets for context menu */
+  .context-menu button,
+  .context-menu [role='menuitem'] {
+    min-height: 48px;
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* Haptic feedback visual indication */
+.haptic-indicator {
+  animation: haptic-pulse 0.1s ease-in-out;
+}
+
+@keyframes haptic-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+}
+
+/* Loading skeleton for mobile */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--muted-foreground) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Prevent drag interactions on interactive elements */
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-user-drag: none;
+  user-drag: none;
+}

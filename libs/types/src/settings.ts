@@ -960,6 +960,135 @@ export interface ChatSessionRef {
   archived: boolean;
 }
 
+// ============================================================================
+// Branch/Worktree Creation Types
+// ============================================================================
+
+/**
+ * BranchTemplate - Predefined branch name templates with optional issue/PR linking
+ */
+export interface BranchTemplate {
+  /** Template identifier */
+  id: string;
+  /** Display name for the template */
+  name: string;
+  /** Branch name prefix (e.g., 'feature/', 'bugfix/', 'hotfix/') */
+  prefix: string;
+  /** Description for the template */
+  description?: string;
+  /** Icon identifier (lucide icon name) */
+  icon?: string;
+}
+
+/** Predefined branch templates */
+export const BRANCH_TEMPLATES: BranchTemplate[] = [
+  {
+    id: 'feature',
+    name: 'Feature',
+    prefix: 'feature/',
+    description: 'New features',
+    icon: 'sparkles',
+  },
+  { id: 'bugfix', name: 'Bug Fix', prefix: 'bugfix/', description: 'Bug fixes', icon: 'bug' },
+  {
+    id: 'hotfix',
+    name: 'Hot Fix',
+    prefix: 'hotfix/',
+    description: 'Critical production fixes',
+    icon: 'flame',
+  },
+  {
+    id: 'refactor',
+    name: 'Refactor',
+    prefix: 'refactor/',
+    description: 'Code refactoring',
+    icon: 'git-branch',
+  },
+  {
+    id: 'chore',
+    name: 'Chore',
+    prefix: 'chore/',
+    description: 'Maintenance tasks',
+    icon: 'settings',
+  },
+  {
+    id: 'docs',
+    name: 'Docs',
+    prefix: 'docs/',
+    description: 'Documentation changes',
+    icon: 'file-text',
+  },
+  {
+    id: 'test',
+    name: 'Test',
+    prefix: 'test/',
+    description: 'Test improvements',
+    icon: 'check-circle',
+  },
+  {
+    id: 'release',
+    name: 'Release',
+    prefix: 'release/',
+    description: 'Release preparation',
+    icon: 'package',
+  },
+];
+
+/**
+ * WorktreeFileCopySettings - Files to copy from main project to worktree
+ */
+export interface WorktreeFileCopySettings {
+  /** Copy .env file if it exists */
+  copyEnvFile?: boolean;
+  /** Custom files to copy (relative paths) */
+  customFiles?: string[];
+}
+
+/** Default worktree file copy settings */
+export const DEFAULT_WORKTREE_FILE_COPY_SETTINGS: WorktreeFileCopySettings = {
+  copyEnvFile: true,
+  customFiles: [],
+};
+
+/**
+ * PostCreationAction - Actions to run after worktree creation
+ */
+export type PostCreationAction = 'installDependencies' | 'runSetupScript';
+
+/**
+ * PostCreationActions - Configuration for actions to run after worktree creation
+ */
+export interface PostCreationActions {
+  /** Auto-install dependencies (npm/pnpm/yarn install) */
+  installDependencies?: boolean;
+  /** Run setup script if defined */
+  runSetupScript?: boolean;
+}
+
+/** Default post-creation actions */
+export const DEFAULT_POST_CREATION_ACTIONS: PostCreationActions = {
+  installDependencies: false,
+  runSetupScript: false,
+};
+
+/**
+ * WorktreeCreateOptions - Enhanced options for creating a worktree
+ */
+export interface WorktreeCreateOptions {
+  /** Branch name template to use (prefix) */
+  branchTemplate?: string;
+  /** Issue/PR number to link in branch name */
+  issueNumber?: string;
+  /** Base branch to create from (defaults to HEAD) */
+  baseBranch?: string;
+  /** Custom path for the worktree (relative to .worktrees/) */
+  customPath?: string;
+  /** File copy settings */
+  fileCopySettings?: WorktreeFileCopySettings;
+  /** Post-creation actions */
+  postCreationActions?: PostCreationActions;
+}
+
 /**
  * GlobalSettings - User preferences and state stored globally in {DATA_DIR}/settings.json
  *
@@ -1053,6 +1182,15 @@ export interface GlobalSettings {
   skipVerificationInAutoMode: boolean;
   /** Default: use git worktrees for feature branches */
   useWorktrees: boolean;
+
+  // Branch/Worktree Creation Defaults
+  /** Default branch template (prefix) for new worktrees */
+  defaultBranchTemplate?: string;
+  /** Default file copy settings for new worktrees */
+  defaultWorktreeFileCopySettings?: WorktreeFileCopySettings;
+  /** Default post-creation actions for new worktrees */
+  defaultPostCreationActions?: PostCreationActions;
+
   /** Default: planning approach (skip/lite/spec/full) */
   defaultPlanningMode: PlanningMode;
   /** Default: require manual approval before generating */
@@ -1268,6 +1406,234 @@ export interface GlobalSettings {
       branchName: string | null;
     }
   >;
+
+  // Git Editor Settings
+  /**
+   * Git editor configuration and preferences
+   * @since v7
+   */
+  gitEditorSettings?: GitEditorSettings;
+}
+
+/**
+ * GitMergeStrategy - Default merge/rebase strategy preferences
+ */
+export type GitMergeStrategy =
+  | 'merge' // Standard merge commit
+  | 'rebase' // Rebase local changes on top of remote
+  | 'squash' // Squash all commits into one
+  | 'ff-only' // Fast-forward only (fail if diverged)
+  | 'auto'; // Let git decide based on branch config
+
+/**
+ * GitDiffViewMode - Diff display preferences
+ */
+export type GitDiffViewMode = 'side-by-side' | 'unified' | 'split';
+
+/**
+ * GitGpgSignMode - GPG signing preferences for commits
+ */
+export type GitGpgSignMode = 'never' | 'always' | 'prompt' | 'when-key-available';
+
+/**
+ * GitRemoteType - Common git remote names
+ */
+export type GitRemoteType = 'origin' | 'upstream' | 'fork' | 'custom';
+
+/**
+ * GitSyntaxTheme - Syntax highlighting themes for git diff/code views
+ */
+export type GitSyntaxTheme =
+  | 'auto' // Match application theme
+  | 'dark'
+  | 'light'
+  | 'monokai'
+  | 'dracula'
+  | 'nord'
+  | 'github-dark'
+  | 'github-light'
+  | 'solarized-dark'
+  | 'solarized-light';
+
+/**
+ * GitAuthorOverride - Override git author identity for specific projects
+ */
+export interface GitAuthorOverride {
+  /** Author name for commits */
+  name?: string;
+  /** Author email for commits */
+  email?: string;
+  /** Whether to use these overrides globally or per-project */
+  scope?: 'global' | 'project';
+}
+
+/**
+ * GitBranchNameTemplate - Templates for generating branch names
+ */
+export interface GitBranchNameTemplate {
+  /** Template ID (e.g., 'feature', 'bugfix') */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Branch prefix (e.g., 'feature/', 'bugfix/') */
+  prefix: string;
+  /** Include issue/PR number if available */
+  includeIssueNumber?: boolean;
+  /** Issue number format (e.g., '#%d', '-%d', '') */
+  issueNumberFormat?: string;
+  /** Description format (e.g., '-kebab-case', '-snake_case', '') */
+  descriptionFormat?: 'kebab-case' | 'snake_case' | 'camelCase' | 'flat';
+}
+
+/**
+ * GitWorktreeFileCopySettings - Files to copy from main project to worktree
+ */
+export interface GitWorktreeFileCopySettings {
+  /** Copy .env file if it exists */
+  copyEnvFile?: boolean;
+  /** Copy node_modules (useful for some projects) */
+  copyNodeModules?: boolean;
+  /** Copy package-lock.json/yarn.lock/pnpm-lock.yaml */
+  copyLockFile?: boolean;
+  /** Copy .git/config to preserve remotes */
+  copyGitConfig?: boolean;
+  /** Custom files to copy (glob patterns) */
+  customGlobs?: string[];
+  /** Files to exclude from copy (glob patterns) */
+  excludeGlobs?: string[];
+}
+
+/**
+ * GitUIPreferences - UI layout and display preferences for git editor
+ */
+export interface GitUIPreferences {
+  /** Default panel width in pixels (for resizable panels) */
+  defaultPanelWidth?: number;
+  /** Default panel height in pixels */
+  defaultPanelHeight?: number;
+  /** Show commit history by default */
+  showCommitHistory?: boolean;
+  /** Show branch list by default */
+  showBranchList?: boolean;
+  /** Show file tree by default */
+  showFileTree?: boolean;
+  /** Show staged/unstaged sections separately */
+  showStageSections?: boolean;
+  /** Syntax theme for diff/code views */
+  syntaxTheme?: GitSyntaxTheme;
+  /** Font size for diff views (pixels) */
+  diffFontSize?: number;
+  /** Show line numbers in diff */
+  showLineNumbers?: boolean;
+  /** Show whitespace changes in diff */
+  showWhitespaceChanges?: boolean;
+  /** Ignore whitespace when comparing */
+  ignoreWhitespace?: boolean;
+  /** Number of context lines in diff */
+  diffContextLines?: number;
+  /** Word wrap in diff view */
+  diffWordWrap?: boolean;
+}
+
+/**
+ * GitEditorSettings - Comprehensive git editor configuration
+ *
+ * Persists git-related preferences for the built-in git editor/IDE.
+ * Supports both global defaults and per-project overrides.
+ *
+ * @since v7
+ */
+export interface GitEditorSettings {
+  /** Version for schema migration */
+  version: number;
+
+  // Merge/Rebase Configuration
+  /** Default merge/rebase strategy */
+  mergeStrategy?: GitMergeStrategy;
+  /** Create merge commits even when fast-forward is possible */
+  noFastForward?: boolean;
+  /** Always create a merge commit when rebasing */
+  rebaseMerges?: boolean;
+
+  // Fetch/Pull Configuration
+  /** Auto-fetch interval in seconds (0 = disabled) */
+  autoFetchInterval?: number;
+  /** Prune remote branches during fetch */
+  autoPrune?: boolean;
+  /** Number of commits to fetch (shallow fetch, 0 = full) */
+  fetchDepth?: number;
+  /** Tags to fetch during fetch ('--tags', '--no-tags', or '') */
+  fetchTags?: '--tags' | '--no-tags' | '';
+
+  // Diff View Configuration
+  /** Default diff display mode */
+  diffViewMode?: GitDiffViewMode;
+  /** Ignore whitespace in diffs */
+  diffIgnoreWhitespace?: boolean;
+  /** Number of context lines to show in diff */
+  diffContextLines?: number;
+
+  // Commit Configuration
+  /** Default commit message template */
+  commitMessageTemplate?: string;
+  /** Enable verbose commit messages (include diff stats) */
+  verboseCommits?: boolean;
+  /** Commit message validation regex (for custom commit policies) */
+  commitMessagePattern?: string;
+
+  // GPG Signing Configuration
+  /** GPG signing mode for commits */
+  gpgSignMode?: GitGpgSignMode;
+  /** GPG key ID to use (null = use default key) */
+  gpgSignKeyId?: string | null;
+  /** GPG sign commits by default */
+  commitGpgSign?: boolean;
+  /** GPG sign tags by default */
+  tagGpgSign?: boolean;
+
+  // Author Identity
+  /** Override git author name/email */
+  authorOverride?: GitAuthorOverride;
+  /** Use different committer and author identities */
+  distinctCommitter?: boolean;
+
+  // Remote Configuration
+  /** Default remote for push operations */
+  pushRemote?: GitRemoteType | string;
+  /** Default remote for pull/fetch operations */
+  pullRemote?: GitRemoteType | string;
+  /** Set upstream branch for push */
+  pushSetUpstream?: boolean;
+  /** Push to all remotes (mirror push) */
+  pushAllRemotes?: boolean;
+  /** Push to matching branches (not just current) */
+  pushMatching?: boolean;
+
+  // Branch Templates
+  /** Default branch template to use */
+  defaultBranchTemplate?: string;
+  /** Custom branch name templates */
+  branchTemplates?: GitBranchNameTemplate[];
+
+  // Worktree Configuration
+  /** File copy settings for new worktrees */
+  worktreeFileCopySettings?: GitWorktreeFileCopySettings;
+  /** Track worktree branches in main repo */
+  trackWorktreeBranches?: boolean;
+  /** Auto-fetch worktree status */
+  autoFetchWorktrees?: boolean;
+
+  // UI Preferences
+  /** UI layout and display preferences */
+  uiPreferences?: GitUIPreferences;
+
+  // Advanced Options
+  /** Custom git config options (key-value pairs) */
+  customGitConfig?: Record<string, string>;
+  /** Environment variables for git commands */
+  gitEnvironment?: Record<string, string>;
+  /** Timeout for git operations (milliseconds) */
+  gitTimeout?: number;
 }
 
 /**
@@ -1383,6 +1749,12 @@ export interface ProjectSettings {
   defaultDeleteBranchWithWorktree?: boolean;
   /** Auto-dismiss init script indicator after completion (default: true) */
   autoDismissInitScriptIndicator?: boolean;
+  /** Project-specific branch template (prefix) for new worktrees */
+  branchTemplate?: string;
+  /** Project-specific file copy settings for new worktrees */
+  worktreeFileCopySettings?: WorktreeFileCopySettings;
+  /** Project-specific post-creation actions for new worktrees */
+  postCreationActions?: PostCreationActions;
 
   // Session Tracking
   /** Last chat session selected in this project */
@@ -1504,8 +1876,109 @@ export const DEFAULT_PHASE_MODELS: PhaseModelConfig = {
   commitMessageModel: { model: 'claude-haiku' },
 };
 
+/** Default branch name templates for git */
+export const DEFAULT_BRANCH_NAME_TEMPLATES: GitBranchNameTemplate[] = [
+  {
+    id: 'feature',
+    name: 'Feature',
+    prefix: 'feature/',
+    includeIssueNumber: false,
+    issueNumberFormat: '',
+    descriptionFormat: 'kebab-case',
+  },
+  {
+    id: 'bugfix',
+    name: 'Bug Fix',
+    prefix: 'bugfix/',
+    includeIssueNumber: false,
+    issueNumberFormat: '',
+    descriptionFormat: 'kebab-case',
+  },
+  {
+    id: 'hotfix',
+    name: 'Hot Fix',
+    prefix: 'hotfix/',
+    includeIssueNumber: false,
+    issueNumberFormat: '',
+    descriptionFormat: 'kebab-case',
+  },
+  {
+    id: 'issue',
+    name: 'Issue',
+    prefix: 'issue/',
+    includeIssueNumber: true,
+    issueNumberFormat: '#%d',
+    descriptionFormat: 'kebab-case',
+  },
+];
+
+/** Default worktree file copy settings for git */
+export const DEFAULT_GIT_WORKTREE_FILE_COPY_SETTINGS: GitWorktreeFileCopySettings = {
+  copyEnvFile: true,
+  copyNodeModules: false,
+  copyLockFile: true,
+  copyGitConfig: false,
+  customGlobs: [],
+  excludeGlobs: ['.git/**', 'node_modules/**', 'dist/**', 'build/**'],
+};
+
+/** Default git UI preferences */
+export const DEFAULT_GIT_UI_PREFERENCES: GitUIPreferences = {
+  defaultPanelWidth: 300,
+  defaultPanelHeight: 400,
+  showCommitHistory: true,
+  showBranchList: true,
+  showFileTree: true,
+  showStageSections: true,
+  syntaxTheme: 'auto',
+  diffFontSize: 13,
+  showLineNumbers: true,
+  showWhitespaceChanges: false,
+  ignoreWhitespace: false,
+  diffContextLines: 3,
+  diffWordWrap: false,
+};
+
+/** Default git editor settings */
+export const DEFAULT_GIT_EDITOR_SETTINGS: GitEditorSettings = {
+  version: 1,
+  mergeStrategy: 'merge',
+  noFastForward: false,
+  rebaseMerges: false,
+  autoFetchInterval: 0,
+  autoPrune: true,
+  fetchDepth: 0,
+  fetchTags: '',
+  diffViewMode: 'side-by-side',
+  diffIgnoreWhitespace: false,
+  diffContextLines: 3,
+  commitMessageTemplate: '',
+  verboseCommits: false,
+  commitMessagePattern: '',
+  gpgSignMode: 'never',
+  gpgSignKeyId: null,
+  commitGpgSign: false,
+  tagGpgSign: false,
+  authorOverride: undefined,
+  distinctCommitter: false,
+  pushRemote: 'origin',
+  pullRemote: 'origin',
+  pushSetUpstream: true,
+  pushAllRemotes: false,
+  pushMatching: false,
+  defaultBranchTemplate: 'feature',
+  branchTemplates: DEFAULT_BRANCH_NAME_TEMPLATES,
+  worktreeFileCopySettings: DEFAULT_GIT_WORKTREE_FILE_COPY_SETTINGS,
+  trackWorktreeBranches: true,
+  autoFetchWorktrees: true,
+  uiPreferences: DEFAULT_GIT_UI_PREFERENCES,
+  customGitConfig: {},
+  gitEnvironment: {},
+  gitTimeout: 30000,
+};
+
 /** Current version of the global settings schema */
-export const SETTINGS_VERSION = 6;
+export const SETTINGS_VERSION = 7;
 /** Current version of the credentials schema */
 export const CREDENTIALS_VERSION = 1;
 /** Current version of the project settings schema */
@@ -1608,6 +2081,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   claudeApiProfiles: [],
   activeClaudeApiProfileId: null,
   autoModeByWorktree: {},
+  gitEditorSettings: DEFAULT_GIT_EDITOR_SETTINGS,
 };
 
 /** Default credentials (empty strings - user must provide API keys) */

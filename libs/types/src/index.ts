@@ -168,6 +168,12 @@ export type {
   BoardBackgroundSettings,
   WorktreeInfo,
   ProjectSettings,
+  // Branch/Worktree creation types
+  BranchTemplate,
+  WorktreeFileCopySettings,
+  PostCreationAction,
+  PostCreationActions,
+  WorktreeCreateOptions,
   // Event hook types
   EventHookTrigger,
   EventHookHttpMethod,
@@ -185,6 +191,17 @@ export type {
   // Claude API profile types (deprecated)
   ClaudeApiProfile,
   ClaudeApiProfileTemplate,
+  // Git Editor Settings types
+  GitMergeStrategy,
+  GitDiffViewMode,
+  GitGpgSignMode,
+  GitRemoteType,
+  GitSyntaxTheme,
+  GitAuthorOverride,
+  GitBranchNameTemplate,
+  GitWorktreeFileCopySettings,
+  GitUIPreferences,
+  GitEditorSettings,
 } from './settings.js';
 export {
   DEFAULT_KEYBOARD_SHORTCUTS,
@@ -206,6 +223,14 @@ export {
   CLAUDE_PROVIDER_TEMPLATES,
   // Claude API profile constants (deprecated)
   CLAUDE_API_PROFILE_TEMPLATES,
+  // Branch/Worktree creation constants
+  BRANCH_TEMPLATES,
+  DEFAULT_WORKTREE_FILE_COPY_SETTINGS,
+  DEFAULT_POST_CREATION_ACTIONS,
+  DEFAULT_GIT_EDITOR_SETTINGS,
+  DEFAULT_BRANCH_NAME_TEMPLATES,
+  DEFAULT_GIT_WORKTREE_FILE_COPY_SETTINGS,
+  DEFAULT_GIT_UI_PREFERENCES,
 } from './settings.js';
 
 // Model display constants
@@ -374,6 +399,22 @@ export type { TerminalInfo } from './terminal.js';
 
 // Test runner types
 export type { TestRunnerInfo } from './test-runner.js';
+
+// Git state management types
+export type {
+  BranchAheadBehind,
+  RemoteStatus,
+  BranchInfo,
+  UncommittedChanges,
+  GitOperationProgress,
+  GitRepositoryState,
+  GitStateChangeEvent,
+  GitStateChangeType,
+  GitStateChange,
+  GitStateCacheEntry,
+  GitStateServiceOptions,
+  GitStateQueryResult,
+} from './git-state.js';
 
 // Project overview types (multi-project dashboard)
 export type {

@@ -16,6 +16,7 @@ export type SettingsViewId =
   | 'appearance'
   | 'terminal'
   | 'editor'
+  | 'git-editor'
   | 'keyboard'
   | 'audio'
   | 'event-hooks'

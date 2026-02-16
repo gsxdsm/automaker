@@ -63,6 +63,8 @@ const eslintConfig = defineConfig([
         HTMLParagraphElement: 'readonly',
         HTMLImageElement: 'readonly',
         Element: 'readonly',
+        Node: 'readonly',
+        Window: 'readonly',
         SVGElement: 'readonly',
         SVGSVGElement: 'readonly',
         // Event Types
@@ -74,6 +76,7 @@ const eslintConfig = defineConfig([
         ClipboardEvent: 'readonly',
         WheelEvent: 'readonly',
         MouseEvent: 'readonly',
+        TouchEvent: 'readonly',
         UIEvent: 'readonly',
         MediaQueryListEvent: 'readonly',
         DataTransfer: 'readonly',

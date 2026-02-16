@@ -773,7 +773,6 @@ export interface ElectronAPI {
     }>;
   };
   worktree?: WorktreeAPI;
-  git?: GitAPI;
   specRegeneration?: SpecRegenerationAPI;
   autoMode?: AutoModeAPI;
   features?: FeaturesAPI;
@@ -1047,6 +1046,9 @@ export interface ElectronAPI {
       error?: string;
     }>;
   };
+
+  // Git API for branch management and operations
+  git?: GitAPI;
 }
 
 // Note: Window interface is declared in @/types/electron.d.ts
@@ -2777,6 +2779,367 @@ function createMockGitAPI(): GitAPI {
         success: true,
         diff: `diff --git a/${filePath} b/${filePath}\n+++ new file\n@@ -0,0 +1,5 @@\n+// New content`,
         filePath,
+      };
+    },
+
+    // Branch operations
+    getBranches: async (projectPath: string, options?: { includeRemote?: boolean }) => {
+      console.log('[Mock] Getting branches:', { projectPath, options });
+      const mockBranches = [
+        {
+          name: 'main',
+          current: true,
+          detached: false,
+          tracking: 'origin/main',
+          commit: 'abc123',
+          message: 'Initial commit',
+          ahead: 0,
+          behind: 0,
+          hasUncommittedChanges: false,
+          isRemote: false,
+        },
+        {
+          name: 'feat-git-editor',
+          current: false,
+          detached: false,
+          tracking: undefined,
+          commit: 'def456',
+          message: 'feat: Add git editor UI',
+          ahead: 2,
+          behind: 0,
+          hasUncommittedChanges: true,
+          isRemote: false,
+        },
+        {
+          name: 'develop',
+          current: false,
+          detached: false,
+          tracking: 'origin/develop',
+          commit: 'ghi789',
+          message: 'Merge branch feature',
+          ahead: 0,
+          behind: 1,
+          hasUncommittedChanges: false,
+          isRemote: false,
+        },
+      ];
+
+      if (options?.includeRemote) {
+        mockBranches.push(
+          {
+            name: 'origin/main',
+            current: false,
+            detached: false,
+            isRemote: true,
+          },
+          {
+            name: 'origin/develop',
+            current: false,
+            detached: false,
+            isRemote: true,
+          }
+        );
+      }
+
+      return { success: true, branches: mockBranches };
+    },
+
+    getCurrentBranch: async (projectPath: string) => {
+      console.log('[Mock] Getting current branch:', { projectPath });
+      return { success: true, branch: 'main' };
+    },
+
+    checkoutBranch: async (projectPath: string, branchName: string) => {
+      console.log('[Mock] Checking out branch:', { projectPath, branchName });
+      return { success: true };
+    },
+
+    createBranch: async (projectPath: string, branchName: string, startPoint?: string) => {
+      console.log('[Mock] Creating branch:', { projectPath, branchName, startPoint });
+      return { success: true };
+    },
+
+    deleteBranch: async (projectPath: string, branchName: string, force?: boolean) => {
+      console.log('[Mock] Deleting branch:', { projectPath, branchName, force });
+      return { success: true };
+    },
+
+    renameBranch: async (projectPath: string, oldName: string | undefined, newName: string) => {
+      console.log('[Mock] Renaming branch:', { projectPath, oldName, newName });
+      return { success: true };
+    },
+
+    getRemotes: async (projectPath: string) => {
+      console.log('[Mock] Getting remotes:', { projectPath });
+      return {
+        success: true,
+        remotes: [
+          {
+            name: 'origin',
+            fetchUrl: 'https://github.com/user/repo.git',
+            pushUrl: 'https://github.com/user/repo.git',
+          },
+        ],
+      };
+    },
+
+    // Merge/rebase operations
+    mergeBranch: async (
+      projectPath: string,
+      branchName: string,
+      options?: { noCommit?: boolean; noFF?: boolean; squash?: boolean }
+    ) => {
+      console.log('[Mock] Merging branch:', { projectPath, branchName, options });
+      return { success: true };
+    },
+
+    rebaseBranch: async (projectPath: string, branchName: string) => {
+      console.log('[Mock] Rebasing branch:', { projectPath, branchName });
+      return { success: true };
+    },
+
+    // Push/pull operations
+    pull: async (
+      projectPath: string,
+      remote?: string,
+      branch?: string,
+      options?: { rebase?: boolean }
+    ) => {
+      console.log('[Mock] Pulling changes:', { projectPath, remote, branch, options });
+      return { success: true };
+    },
+
+    push: async (
+      projectPath: string,
+      remote?: string,
+      branch?: string,
+      options?: { force?: boolean; setUpstream?: boolean }
+    ) => {
+      console.log('[Mock] Pushing changes:', { projectPath, remote, branch, options });
+      return { success: true };
+    },
+
+    // Remote operations
+    fetch: async (projectPath: string, remote?: string) => {
+      console.log('[Mock] Fetching from remote:', { projectPath, remote });
+      return { success: true };
+    },
+
+    addRemote: async (projectPath: string, name: string, url: string) => {
+      console.log('[Mock] Adding remote:', { projectPath, name, url });
+      return { success: true };
+    },
+
+    removeRemote: async (projectPath: string, name: string) => {
+      console.log('[Mock] Removing remote:', { projectPath, name });
+      return { success: true };
+    },
+
+    updateRemote: async (projectPath: string, name: string, url: string) => {
+      console.log('[Mock] Updating remote:', { projectPath, name, url });
+      return { success: true };
+    },
+
+    // Stash operations
+    listStashes: async (projectPath: string) => {
+      console.log('[Mock] Listing stashes:', { projectPath });
+      return {
+        success: true,
+        stashes: [
+          {
+            index: 0,
+            ref: 'stash@{0}',
+            hash: 'abc123',
+            message: 'WIP: Work in progress on feature',
+          },
+          { index: 1, ref: 'stash@{1}', hash: 'def456', message: 'Experimental changes' },
+        ],
+      };
+    },
+
+    saveStash: async (projectPath: string, message?: string, includeUntracked?: boolean) => {
+      console.log('[Mock] Saving stash:', { projectPath, message, includeUntracked });
+      return { success: true };
+    },
+
+    applyStash: async (projectPath: string, index?: number) => {
+      console.log('[Mock] Applying stash:', { projectPath, index });
+      return { success: true };
+    },
+
+    popStash: async (projectPath: string, index?: number) => {
+      console.log('[Mock] Popping stash:', { projectPath, index });
+      return { success: true };
+    },
+
+    dropStash: async (projectPath: string, index: number) => {
+      console.log('[Mock] Dropping stash:', { projectPath, index });
+      return { success: true };
+    },
+
+    clearStashes: async (projectPath: string) => {
+      console.log('[Mock] Clearing all stashes:', { projectPath });
+      return { success: true };
+    },
+
+    showStash: async (projectPath: string, index?: number) => {
+      console.log('[Mock] Showing stash diff:', { projectPath, index });
+      return {
+        success: true,
+        diff: 'diff --git a/src/example.ts b/src/example.ts\n+++ new file\n@@ -0,0 +1,5 @@\n+// Example changes',
+      };
+    },
+
+    getStash: async (projectPath: string, index: number) => {
+      console.log('[Mock] Getting stash:', { projectPath, index });
+      return {
+        success: true,
+        stash: { index, ref: `stash@{${index}}`, hash: 'abc123', message: 'WIP: Work in progress' },
+      };
+    },
+
+    // Commit operations
+    stageFiles: async (projectPath: string, paths?: string[]) => {
+      console.log('[Mock] Staging files:', { projectPath, paths });
+      return { success: true };
+    },
+
+    unstageFiles: async (projectPath: string, paths: string[]) => {
+      console.log('[Mock] Unstaging files:', { projectPath, paths });
+      return { success: true };
+    },
+
+    commit: async (
+      projectPath: string,
+      message: string,
+      options?: { allowEmpty?: boolean; amend?: boolean; noVerify?: boolean; signOff?: boolean }
+    ) => {
+      console.log('[Mock] Creating commit:', { projectPath, message, options });
+      return { success: true, commitHash: 'abc123' };
+    },
+
+    discardChanges: async (projectPath: string, paths: string[]) => {
+      console.log('[Mock] Discarding changes:', { projectPath, paths });
+      return { success: true };
+    },
+
+    getStatus: async (projectPath: string) => {
+      console.log('[Mock] Getting git status:', { projectPath });
+      return {
+        success: true,
+        files: [{ status: 'M', path: 'src/example.ts', statusText: 'Modified' }],
+      };
+    },
+
+    // Pull Request operations
+    isGhInstalled: async () => {
+      return { success: true, installed: true };
+    },
+
+    listPullRequests: async (
+      projectPath: string,
+      options?: { state?: 'OPEN' | 'CLOSED' | 'MERGED' | 'ALL'; limit?: number }
+    ) => {
+      console.log('[Mock] Listing PRs:', { projectPath, options });
+      return {
+        success: true,
+        prs: [
+          {
+            number: 123,
+            title: 'Example PR',
+            state: 'OPEN',
+            author: 'user',
+            url: 'https://github.com/user/repo/pull/123',
+            headRefName: 'feature-branch',
+            baseRefName: 'main',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      };
+    },
+
+    getPullRequest: async (projectPath: string, prNumber: number) => {
+      console.log('[Mock] Getting PR:', { projectPath, prNumber });
+      return {
+        success: true,
+        pr: {
+          number: prNumber,
+          title: 'Example PR',
+          state: 'OPEN',
+          author: 'user',
+          url: 'https://github.com/user/repo/pull/123',
+          headRefName: 'feature-branch',
+          baseRefName: 'main',
+          createdAt: new Date().toISOString(),
+        },
+      };
+    },
+
+    createPullRequest: async (
+      projectPath: string,
+      options: { title: string; body?: string; head?: string; base?: string; draft?: boolean }
+    ) => {
+      console.log('[Mock] Creating PR:', { projectPath, options });
+      return {
+        success: true,
+        pr: {
+          number: 123,
+          title: options.title,
+          state: 'OPEN',
+          author: 'user',
+          url: 'https://github.com/user/repo/pull/123',
+          headRefName: options.head || 'feature-branch',
+          baseRefName: options.base || 'main',
+          createdAt: new Date().toISOString(),
+        },
+      };
+    },
+
+    closePullRequest: async (projectPath: string, prNumber: number) => {
+      console.log('[Mock] Closing PR:', { projectPath, prNumber });
+      return { success: true };
+    },
+
+    mergePullRequest: async (
+      projectPath: string,
+      prNumber: number,
+      options?: { mergeMethod?: 'merge' | 'squash' | 'rebase'; comment?: string }
+    ) => {
+      console.log('[Mock] Merging PR:', { projectPath, prNumber, options });
+      return { success: true };
+    },
+
+    commentOnPullRequest: async (projectPath: string, prNumber: number, comment: string) => {
+      console.log('[Mock] Commenting on PR:', { projectPath, prNumber, comment });
+      return { success: true };
+    },
+
+    getPullRequestChecks: async (projectPath: string, prNumber: number) => {
+      console.log('[Mock] Getting PR checks:', { projectPath, prNumber });
+      return {
+        success: true,
+        checks: [{ name: 'ci', status: 'completed', conclusion: 'success' }],
+      };
+    },
+
+    checkoutPullRequest: async (projectPath: string, prNumber: number) => {
+      console.log('[Mock] Checking out PR:', { projectPath, prNumber });
+      return { success: true };
+    },
+
+    generatePRTitle: async (projectPath: string, baseBranch?: string) => {
+      console.log('[Mock] Generating PR title:', { projectPath, baseBranch });
+      return {
+        success: true,
+        title: 'Example PR Title',
+      };
+    },
+
+    generatePRDescription: async (projectPath: string, baseBranch?: string) => {
+      console.log('[Mock] Generating PR description:', { projectPath, baseBranch });
+      return {
+        success: true,
+        description: 'Example PR description',
       };
     },
   };

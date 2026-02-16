@@ -20,10 +20,23 @@ export function useCreateWorktree(projectPath: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ branchName, baseBranch }: { branchName: string; baseBranch?: string }) => {
+    mutationFn: async (options: {
+      branchName: string;
+      baseBranch?: string;
+      branchTemplate?: string;
+      issueNumber?: string;
+      customPath?: string;
+      fileCopySettings?: { copyEnvFile?: boolean; customFiles?: string[] };
+      postCreationActions?: { installDependencies?: boolean; runSetupScript?: boolean };
+    }) => {
       const api = getElectronAPI();
       if (!api.worktree) throw new Error('Worktree API not available');
-      const result = await api.worktree.create(projectPath, branchName, baseBranch);
+      const result = await api.worktree.create(
+        projectPath,
+        options.branchName,
+        options.baseBranch,
+        options
+      );
       if (!result.success) {
         throw new Error(result.error || 'Failed to create worktree');
       }

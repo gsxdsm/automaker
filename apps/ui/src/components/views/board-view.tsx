@@ -53,6 +53,7 @@ import {
   FollowUpDialog,
   PlanApprovalDialog,
   PullResolveConflictsDialog,
+  WorktreeManagementDialog,
 } from './board-view/dialogs';
 import type { DependencyLinkType } from './board-view/dialogs';
 import { PipelineSettingsDialog } from './board-view/dialogs/pipeline-settings-dialog';
@@ -172,6 +173,7 @@ export function BoardView() {
   const [showCreatePRDialog, setShowCreatePRDialog] = useState(false);
   const [showCreateBranchDialog, setShowCreateBranchDialog] = useState(false);
   const [showPullResolveConflictsDialog, setShowPullResolveConflictsDialog] = useState(false);
+  const [showWorktreeManagementDialog, setShowWorktreeManagementDialog] = useState(false);
   const [selectedWorktreeForAction, setSelectedWorktreeForAction] = useState<WorktreeInfo | null>(
     null
   );
@@ -1382,6 +1384,7 @@ export function BoardView() {
         onRefreshBoard={refreshBoardState}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        onOpenWorktreeManagementDialog={() => setShowWorktreeManagementDialog(true)}
       />
 
       {/* DndContext wraps both WorktreePanel and main content area to enable drag-to-worktree */}
@@ -1860,6 +1863,42 @@ export function BoardView() {
           setWorktreeRefreshKey((k) => k + 1);
           setSelectedWorktreeForAction(null);
         }}
+      />
+
+      {/* Worktree Management Dialog */}
+      <WorktreeManagementDialog
+        open={showWorktreeManagementDialog}
+        onOpenChange={setShowWorktreeManagementDialog}
+        projectPath={currentProject.path}
+        worktrees={getWorktrees(currentProject.path) ?? EMPTY_WORKTREES}
+        onRefresh={async () => {
+          setWorktreeRefreshKey((k) => k + 1);
+        }}
+        onWorktreeDeleted={(worktree, deletedBranch) => {
+          // Handle deleted worktree - same logic as DeleteWorktreeDialog
+          if (deletedBranch) {
+            hookFeatures.forEach((feature) => {
+              if (feature.branchName === worktree.branch) {
+                const updates = { branchName: null as unknown as string | undefined };
+                updateFeature(feature.id, updates);
+                persistFeatureUpdate(feature.id, updates);
+              }
+            });
+          }
+        }}
+        onWorktreeMerged={(worktree, deletedBranch) => {
+          // Handle merged worktree - same logic as merge completion
+          if (deletedBranch) {
+            hookFeatures.forEach((feature) => {
+              if (feature.branchName === worktree.branch) {
+                const updates = { branchName: null as unknown as string | undefined };
+                updateFeature(feature.id, updates);
+                persistFeatureUpdate(feature.id, updates);
+              }
+            });
+          }
+        }}
+        onCreateWorktree={() => setShowCreateWorktreeDialog(true)}
       />
 
       {/* Init Script Indicator - floating overlay for worktree init script status */}

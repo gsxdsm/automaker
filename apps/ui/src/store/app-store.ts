@@ -49,6 +49,7 @@ import {
   DEFAULT_COPILOT_MODEL,
   DEFAULT_MAX_CONCURRENCY,
   DEFAULT_GLOBAL_SETTINGS,
+  DEFAULT_GIT_EDITOR_SETTINGS,
 } from '@automaker/types';
 
 // Import types from modular type files
@@ -400,6 +401,9 @@ const initialState: AppState = {
   },
   fileEditorSaveStatus: null,
   fileEditorWorktreeByProject: {},
+
+  // Git Editor Settings
+  gitEditorSettings: DEFAULT_GIT_EDITOR_SETTINGS,
 };
 
 export const useAppStore = create<AppState & AppActions>()((set, get) => ({
@@ -2801,6 +2805,12 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setFileEditorSettings: (settings) => {
     set((state) => ({
       fileEditorSettings: { ...state.fileEditorSettings, ...settings },
+    }));
+  },
+
+  setGitEditorSettings: (settings) => {
+    set((state) => ({
+      gitEditorSettings: { ...state.gitEditorSettings, ...settings },
     }));
   },
 

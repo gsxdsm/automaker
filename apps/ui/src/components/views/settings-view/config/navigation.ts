@@ -17,6 +17,7 @@ import {
   Code2,
   FileCode2,
   Webhook,
+  GitMerge,
 } from 'lucide-react';
 import {
   AnthropicIcon,
@@ -72,6 +73,7 @@ export const GLOBAL_NAV_GROUPS: NavigationGroup[] = [
       { id: 'appearance', label: 'Appearance', icon: Palette },
       { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
       { id: 'editor', label: 'Editor', icon: FileCode2 },
+      { id: 'git-editor', label: 'Git Editor', icon: GitMerge },
       { id: 'keyboard', label: 'Keyboard Shortcuts', icon: Settings2 },
       { id: 'audio', label: 'Audio', icon: Volume2 },
       { id: 'event-hooks', label: 'Event Hooks', icon: Webhook },
