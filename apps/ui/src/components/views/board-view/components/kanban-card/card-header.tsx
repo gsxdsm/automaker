@@ -8,6 +8,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -19,6 +22,7 @@ import {
   ChevronDown,
   ChevronUp,
   GitFork,
+  Copy,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { CountUpTimer } from '@/components/ui/count-up-timer';
@@ -35,6 +39,8 @@ interface CardHeaderProps {
   onDelete: () => void;
   onViewOutput?: () => void;
   onSpawnTask?: () => void;
+  onDuplicate?: () => void;
+  onDuplicateAsChild?: () => void;
 }
 
 export const CardHeaderSection = memo(function CardHeaderSection({
@@ -46,6 +52,8 @@ export const CardHeaderSection = memo(function CardHeaderSection({
   onDelete,
   onViewOutput,
   onSpawnTask,
+  onDuplicate,
+  onDuplicateAsChild,
 }: CardHeaderProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -109,6 +117,39 @@ export const CardHeaderSection = memo(function CardHeaderSection({
                 <GitFork className="w-3 h-3 mr-2" />
                 Spawn Sub-Task
               </DropdownMenuItem>
+              {onDuplicate && (
+                <DropdownMenuSub>
+                  <div className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDuplicate();
+                      }}
+                      className="text-xs flex-1 pr-0 rounded-r-none"
+                    >
+                      <Copy className="w-3 h-3 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {onDuplicateAsChild && (
+                      <DropdownMenuSubTrigger className="text-xs px-1 rounded-l-none border-l border-border/30 h-8" />
+                    )}
+                  </div>
+                  {onDuplicateAsChild && (
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDuplicateAsChild();
+                        }}
+                        className="text-xs"
+                      >
+                        <GitFork className="w-3 h-3 mr-2" />
+                        Duplicate as Child
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
+              )}
               {/* Model info in dropdown */}
               {(() => {
                 const ProviderIcon = getProviderIconForModel(feature.model);
@@ -126,35 +167,83 @@ export const CardHeaderSection = memo(function CardHeaderSection({
         </div>
       )}
 
-      {/* Backlog header */}
-      {!isCurrentAutoTask && !isSelectionMode && feature.status === 'backlog' && (
-        <div className="absolute top-2 right-2 flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSpawnTask?.();
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            data-testid={`spawn-backlog-${feature.id}`}
-            title="Spawn Sub-Task"
-          >
-            <GitFork className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-white/10 text-muted-foreground hover:text-destructive"
-            onClick={handleDeleteClick}
-            onPointerDown={(e) => e.stopPropagation()}
-            data-testid={`delete-backlog-${feature.id}`}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
+      {/* Backlog and Scheduled header */}
+      {!isCurrentAutoTask &&
+        !isSelectionMode &&
+        (feature.status === 'backlog' || feature.status === 'scheduled') && (
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-white/10 text-muted-foreground hover:text-destructive"
+              onClick={handleDeleteClick}
+              onPointerDown={(e) => e.stopPropagation()}
+              data-testid={`delete-${feature.status}-${feature.id}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-muted/80 rounded-md"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  data-testid={`menu-${feature.status}-${feature.id}`}
+                >
+                  <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSpawnTask?.();
+                  }}
+                  data-testid={`spawn-${feature.status}-${feature.id}`}
+                  className="text-xs"
+                >
+                  <GitFork className="w-3 h-3 mr-2" />
+                  Spawn Sub-Task
+                </DropdownMenuItem>
+                {onDuplicate && (
+                  <DropdownMenuSub>
+                    <div className="flex items-center">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDuplicate();
+                        }}
+                        className="text-xs flex-1 pr-0 rounded-r-none"
+                      >
+                        <Copy className="w-3 h-3 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      {onDuplicateAsChild && (
+                        <DropdownMenuSubTrigger className="text-xs px-1 rounded-l-none border-l border-border/30 h-8" />
+                      )}
+                    </div>
+                    {onDuplicateAsChild && (
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateAsChild();
+                          }}
+                          className="text-xs"
+                        >
+                          <GitFork className="w-3 h-3 mr-2" />
+                          Duplicate as Child
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    )}
+                  </DropdownMenuSub>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
       {/* Waiting approval / Verified header */}
       {!isCurrentAutoTask &&
@@ -177,22 +266,6 @@ export const CardHeaderSection = memo(function CardHeaderSection({
                 title="Edit"
               >
                 <Edit className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSpawnTask?.();
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                data-testid={`spawn-${
-                  feature.status === 'waiting_approval' ? 'waiting' : 'verified'
-                }-${feature.id}`}
-                title="Spawn Sub-Task"
-              >
-                <GitFork className="w-4 h-4" />
               </Button>
               {onViewOutput && (
                 <Button
@@ -225,6 +298,70 @@ export const CardHeaderSection = memo(function CardHeaderSection({
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:bg-muted/80 rounded-md"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    data-testid={`menu-${
+                      feature.status === 'waiting_approval' ? 'waiting' : 'verified'
+                    }-${feature.id}`}
+                  >
+                    <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSpawnTask?.();
+                    }}
+                    data-testid={`spawn-${
+                      feature.status === 'waiting_approval' ? 'waiting' : 'verified'
+                    }-${feature.id}`}
+                    className="text-xs"
+                  >
+                    <GitFork className="w-3 h-3 mr-2" />
+                    Spawn Sub-Task
+                  </DropdownMenuItem>
+                  {onDuplicate && (
+                    <DropdownMenuSub>
+                      <div className="flex items-center">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicate();
+                          }}
+                          className="text-xs flex-1 pr-0 rounded-r-none"
+                        >
+                          <Copy className="w-3 h-3 mr-2" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        {onDuplicateAsChild && (
+                          <DropdownMenuSubTrigger className="text-xs px-1 rounded-l-none border-l border-border/30 h-8" />
+                        )}
+                      </div>
+                      {onDuplicateAsChild && (
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDuplicateAsChild();
+                            }}
+                            className="text-xs"
+                          >
+                            <GitFork className="w-3 h-3 mr-2" />
+                            Duplicate as Child
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      )}
+                    </DropdownMenuSub>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </>
         )}
@@ -293,6 +430,39 @@ export const CardHeaderSection = memo(function CardHeaderSection({
                   <GitFork className="w-3 h-3 mr-2" />
                   Spawn Sub-Task
                 </DropdownMenuItem>
+                {onDuplicate && (
+                  <DropdownMenuSub>
+                    <div className="flex items-center">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDuplicate();
+                        }}
+                        className="text-xs flex-1 pr-0 rounded-r-none"
+                      >
+                        <Copy className="w-3 h-3 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      {onDuplicateAsChild && (
+                        <DropdownMenuSubTrigger className="text-xs px-1 rounded-l-none border-l border-border/30 h-8" />
+                      )}
+                    </div>
+                    {onDuplicateAsChild && (
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateAsChild();
+                          }}
+                          className="text-xs"
+                        >
+                          <GitFork className="w-3 h-3 mr-2" />
+                          Duplicate as Child
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    )}
+                  </DropdownMenuSub>
+                )}
                 {/* Model info in dropdown */}
                 {(() => {
                   const ProviderIcon = getProviderIconForModel(feature.model);

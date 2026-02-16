@@ -14,6 +14,7 @@ import {
   GitBranch,
   GitFork,
   ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { Feature } from '@/store/app-store';
@@ -43,6 +47,8 @@ export interface RowActionHandlers {
   onViewPlan?: () => void;
   onApprovePlan?: () => void;
   onSpawnTask?: () => void;
+  onDuplicate?: () => void;
+  onDuplicateAsChild?: () => void;
 }
 
 export interface RowActionsProps {
@@ -127,11 +133,11 @@ function getPrimaryAction(
     return null;
   }
 
-  // Backlog - implement is primary
-  if (feature.status === 'backlog' && handlers.onImplement) {
+  // Backlog or Scheduled - implement is primary
+  if ((feature.status === 'backlog' || feature.status === 'scheduled') && handlers.onImplement) {
     return {
       icon: PlayCircle,
-      label: 'Make',
+      label: feature.status === 'scheduled' ? 'Run Now' : 'Make',
       onClick: handlers.onImplement,
       variant: 'primary',
     };
@@ -383,37 +389,63 @@ export const RowActions = memo(function RowActions({
             </>
           )}
 
-          {/* Backlog actions */}
-          {!isCurrentAutoTask && feature.status === 'backlog' && (
-            <>
-              <MenuItem icon={Edit} label="Edit" onClick={withClose(handlers.onEdit)} />
-              {feature.planSpec?.content && handlers.onViewPlan && (
-                <MenuItem icon={Eye} label="View Plan" onClick={withClose(handlers.onViewPlan)} />
-              )}
-              {handlers.onImplement && (
+          {/* Backlog and Scheduled actions */}
+          {!isCurrentAutoTask &&
+            (feature.status === 'backlog' || feature.status === 'scheduled') && (
+              <>
+                <MenuItem icon={Edit} label="Edit" onClick={withClose(handlers.onEdit)} />
+                {feature.planSpec?.content && handlers.onViewPlan && (
+                  <MenuItem icon={Eye} label="View Plan" onClick={withClose(handlers.onViewPlan)} />
+                )}
+                {handlers.onImplement && (
+                  <MenuItem
+                    icon={PlayCircle}
+                    label={feature.status === 'scheduled' ? 'Run Now' : 'Make'}
+                    onClick={withClose(handlers.onImplement)}
+                    variant="primary"
+                  />
+                )}
+                {handlers.onSpawnTask && (
+                  <MenuItem
+                    icon={GitFork}
+                    label="Spawn Sub-Task"
+                    onClick={withClose(handlers.onSpawnTask)}
+                  />
+                )}
+                {handlers.onDuplicate && (
+                  <DropdownMenuSub>
+                    <div className="flex items-center">
+                      <DropdownMenuItem
+                        onClick={withClose(handlers.onDuplicate)}
+                        className="flex-1 pr-0 rounded-r-none"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      {handlers.onDuplicateAsChild && (
+                        <DropdownMenuSubTrigger className="px-1 rounded-l-none border-l border-border/30 h-8" />
+                      )}
+                    </div>
+                    {handlers.onDuplicateAsChild && (
+                      <DropdownMenuSubContent>
+                        <MenuItem
+                          icon={GitFork}
+                          label="Duplicate as Child"
+                          onClick={withClose(handlers.onDuplicateAsChild)}
+                        />
+                      </DropdownMenuSubContent>
+                    )}
+                  </DropdownMenuSub>
+                )}
+                <DropdownMenuSeparator />
                 <MenuItem
-                  icon={PlayCircle}
-                  label="Make"
-                  onClick={withClose(handlers.onImplement)}
-                  variant="primary"
+                  icon={Trash2}
+                  label="Delete"
+                  onClick={withClose(handlers.onDelete)}
+                  variant="destructive"
                 />
-              )}
-              {handlers.onSpawnTask && (
-                <MenuItem
-                  icon={GitFork}
-                  label="Spawn Sub-Task"
-                  onClick={withClose(handlers.onSpawnTask)}
-                />
-              )}
-              <DropdownMenuSeparator />
-              <MenuItem
-                icon={Trash2}
-                label="Delete"
-                onClick={withClose(handlers.onDelete)}
-                variant="destructive"
-              />
-            </>
-          )}
+              </>
+            )}
 
           {/* In Progress actions */}
           {!isCurrentAutoTask && feature.status === 'in_progress' && (
@@ -456,6 +488,31 @@ export const RowActions = memo(function RowActions({
                   label="Spawn Sub-Task"
                   onClick={withClose(handlers.onSpawnTask)}
                 />
+              )}
+              {handlers.onDuplicate && (
+                <DropdownMenuSub>
+                  <div className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={withClose(handlers.onDuplicate)}
+                      className="flex-1 pr-0 rounded-r-none"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {handlers.onDuplicateAsChild && (
+                      <DropdownMenuSubTrigger className="px-1 rounded-l-none border-l border-border/30 h-8" />
+                    )}
+                  </div>
+                  {handlers.onDuplicateAsChild && (
+                    <DropdownMenuSubContent>
+                      <MenuItem
+                        icon={GitFork}
+                        label="Duplicate as Child"
+                        onClick={withClose(handlers.onDuplicateAsChild)}
+                      />
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
               )}
               <MenuItem
                 icon={Trash2}
@@ -502,6 +559,31 @@ export const RowActions = memo(function RowActions({
                   label="Spawn Sub-Task"
                   onClick={withClose(handlers.onSpawnTask)}
                 />
+              )}
+              {handlers.onDuplicate && (
+                <DropdownMenuSub>
+                  <div className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={withClose(handlers.onDuplicate)}
+                      className="flex-1 pr-0 rounded-r-none"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {handlers.onDuplicateAsChild && (
+                      <DropdownMenuSubTrigger className="px-1 rounded-l-none border-l border-border/30 h-8" />
+                    )}
+                  </div>
+                  {handlers.onDuplicateAsChild && (
+                    <DropdownMenuSubContent>
+                      <MenuItem
+                        icon={GitFork}
+                        label="Duplicate as Child"
+                        onClick={withClose(handlers.onDuplicateAsChild)}
+                      />
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
               )}
               <MenuItem
                 icon={Trash2}
@@ -554,6 +636,31 @@ export const RowActions = memo(function RowActions({
                   onClick={withClose(handlers.onSpawnTask)}
                 />
               )}
+              {handlers.onDuplicate && (
+                <DropdownMenuSub>
+                  <div className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={withClose(handlers.onDuplicate)}
+                      className="flex-1 pr-0 rounded-r-none"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {handlers.onDuplicateAsChild && (
+                      <DropdownMenuSubTrigger className="px-1 rounded-l-none border-l border-border/30 h-8" />
+                    )}
+                  </div>
+                  {handlers.onDuplicateAsChild && (
+                    <DropdownMenuSubContent>
+                      <MenuItem
+                        icon={GitFork}
+                        label="Duplicate as Child"
+                        onClick={withClose(handlers.onDuplicateAsChild)}
+                      />
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
+              )}
               <MenuItem
                 icon={Trash2}
                 label="Delete"
@@ -580,6 +687,31 @@ export const RowActions = memo(function RowActions({
                   label="Spawn Sub-Task"
                   onClick={withClose(handlers.onSpawnTask)}
                 />
+              )}
+              {handlers.onDuplicate && (
+                <DropdownMenuSub>
+                  <div className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={withClose(handlers.onDuplicate)}
+                      className="flex-1 pr-0 rounded-r-none"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {handlers.onDuplicateAsChild && (
+                      <DropdownMenuSubTrigger className="px-1 rounded-l-none border-l border-border/30 h-8" />
+                    )}
+                  </div>
+                  {handlers.onDuplicateAsChild && (
+                    <DropdownMenuSubContent>
+                      <MenuItem
+                        icon={GitFork}
+                        label="Duplicate as Child"
+                        onClick={withClose(handlers.onDuplicateAsChild)}
+                      />
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
               )}
               <DropdownMenuSeparator />
               <MenuItem
@@ -615,6 +747,8 @@ export function createRowActionHandlers(
     viewPlan?: (id: string) => void;
     approvePlan?: (id: string) => void;
     spawnTask?: (id: string) => void;
+    duplicate?: (id: string) => void;
+    duplicateAsChild?: (id: string) => void;
   }
 ): RowActionHandlers {
   return {
@@ -631,5 +765,9 @@ export function createRowActionHandlers(
     onViewPlan: actions.viewPlan ? () => actions.viewPlan!(featureId) : undefined,
     onApprovePlan: actions.approvePlan ? () => actions.approvePlan!(featureId) : undefined,
     onSpawnTask: actions.spawnTask ? () => actions.spawnTask!(featureId) : undefined,
+    onDuplicate: actions.duplicate ? () => actions.duplicate!(featureId) : undefined,
+    onDuplicateAsChild: actions.duplicateAsChild
+      ? () => actions.duplicateAsChild!(featureId)
+      : undefined,
   };
 }

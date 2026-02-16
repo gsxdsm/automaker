@@ -13,11 +13,13 @@ import cookieParser from 'cookie-parser';
 import cookie from 'cookie';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
+import net from 'net';
 import dotenv from 'dotenv';
 
 import { createEventEmitter, type EventEmitter } from './lib/events.js';
 import { initAllowedPaths, getClaudeAuthIndicators } from '@automaker/platform';
 import { createLogger, setLogLevel, LogLevel } from '@automaker/utils';
+import { registerRuntimePort } from '@automaker/types';
 
 const logger = createLogger('Server');
 
@@ -66,6 +68,9 @@ import { createCodexRoutes } from './routes/codex/index.js';
 import { CodexUsageService } from './services/codex-usage-service.js';
 import { CodexAppServerService } from './services/codex-app-server-service.js';
 import { CodexModelCacheService } from './services/codex-model-cache-service.js';
+import { createZaiRoutes } from './routes/zai/index.js';
+import { ZaiUsageService } from './services/zai-usage-service.js';
+import { createGeminiRoutes } from './routes/gemini/index.js';
 import { createGitHubRoutes } from './routes/github/index.js';
 import { createContextRoutes } from './routes/context/index.js';
 import { createBacklogPlanRoutes } from './routes/backlog-plan/index.js';
@@ -74,6 +79,7 @@ import { createMCPRoutes } from './routes/mcp/index.js';
 import { MCPTestService } from './services/mcp-test-service.js';
 import { createPipelineRoutes } from './routes/pipeline/index.js';
 import { pipelineService } from './services/pipeline-service.js';
+import { createScheduleRoutes } from './routes/schedule/index.js';
 import { createIdeationRoutes } from './routes/ideation/index.js';
 import { IdeationService } from './services/ideation-service.js';
 import { getDevServerService } from './services/dev-server-service.js';
@@ -84,6 +90,7 @@ import { createEventHistoryRoutes } from './routes/event-history/index.js';
 import { getEventHistoryService } from './services/event-history-service.js';
 import { getTestRunnerService } from './services/test-runner-service.js';
 import { createProjectsRoutes } from './routes/projects/index.js';
+import { SchedulerService, setSchedulerService } from './services/scheduler-service.js';
 
 // Load environment variables
 dotenv.config();
@@ -322,10 +329,18 @@ const settingsService = new SettingsService(DATA_DIR);
 const agentService = new AgentService(DATA_DIR, events, settingsService);
 const featureLoader = new FeatureLoader();
 const autoModeService = new AutoModeService(events, settingsService);
+const schedulerService = new SchedulerService(
+  events,
+  featureLoader,
+  autoModeService,
+  settingsService
+);
+setSchedulerService(schedulerService);
 const claudeUsageService = new ClaudeUsageService();
 const codexAppServerService = new CodexAppServerService();
 const codexModelCacheService = new CodexModelCacheService(DATA_DIR, codexAppServerService);
 const codexUsageService = new CodexUsageService(codexAppServerService);
+const zaiUsageService = new ZaiUsageService();
 const mcpTestService = new MCPTestService(settingsService);
 const ideationService = new IdeationService(events, settingsService, featureLoader);
 
@@ -434,6 +449,8 @@ app.use('/api/terminal', createTerminalRoutes());
 app.use('/api/settings', createSettingsRoutes(settingsService));
 app.use('/api/claude', createClaudeRoutes(claudeUsageService));
 app.use('/api/codex', createCodexRoutes(codexUsageService, codexModelCacheService));
+app.use('/api/zai', createZaiRoutes(zaiUsageService, settingsService));
+app.use('/api/gemini', createGeminiRoutes());
 app.use('/api/github', createGitHubRoutes(events, settingsService));
 app.use('/api/context', createContextRoutes(settingsService));
 app.use('/api/backlog-plan', createBacklogPlanRoutes(events, settingsService));
@@ -446,6 +463,7 @@ app.use(
   '/api/projects',
   createProjectsRoutes(featureLoader, autoModeService, settingsService, notificationService)
 );
+app.use('/api/schedule', createScheduleRoutes());
 
 // Create HTTP server
 const server = createServer(app);
@@ -756,8 +774,52 @@ terminalWss.on('connection', (ws: WebSocket, req: import('http').IncomingMessage
   });
 });
 
-// Start server with error handling for port conflicts
-const startServer = (port: number, host: string) => {
+// Port conflict resolution: find an available port instead of crashing
+const MAX_PORT_SEARCH_ATTEMPTS = 100;
+
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const testServer = net.createServer();
+    testServer.once('error', () => resolve(false));
+    testServer.once('listening', () => {
+      testServer.close(() => resolve(true));
+    });
+    testServer.listen(port);
+  });
+}
+
+async function findAvailablePort(preferredPort: number): Promise<number> {
+  for (let offset = 0; offset < MAX_PORT_SEARCH_ATTEMPTS; offset++) {
+    const port = preferredPort + offset;
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  throw new Error(
+    `Could not find an available port in range ${preferredPort}-${preferredPort + MAX_PORT_SEARCH_ATTEMPTS - 1}`
+  );
+}
+
+// Start server with automatic port conflict resolution
+const startServer = async (preferredPort: number, host: string) => {
+  let port: number;
+  try {
+    port = await findAvailablePort(preferredPort);
+  } catch {
+    logger.error(
+      `Could not find an available port starting from ${preferredPort}. All ports in range ${preferredPort}-${preferredPort + MAX_PORT_SEARCH_ATTEMPTS - 1} are in use.`
+    );
+    process.exit(1);
+    return; // unreachable, but satisfies TypeScript
+  }
+
+  if (port !== preferredPort) {
+    logger.info(`Default port ${preferredPort} is in use, using port ${port} instead`);
+  }
+
+  // Register the actual port so dev-server-service won't kill it
+  registerRuntimePort(port);
+
   server.listen(port, host, () => {
     const terminalStatus = isTerminalEnabled()
       ? isTerminalPasswordRequired()
@@ -794,50 +856,17 @@ const startServer = (port: number, host: string) => {
 ║                                                                     ║
 ╚═════════════════════════════════════════════════════════════════════╝
 `);
+
+    // Start the scheduler service for recurring tasks
+    schedulerService.start();
+    schedulerService.recalculateNextRunTimes().catch((err) => {
+      logger.error('Error recalculating scheduled task run times:', err);
+    });
   });
 
   server.on('error', (error: NodeJS.ErrnoException) => {
-    if (error.code === 'EADDRINUSE') {
-      const portStr = port.toString();
-      const nextPortStr = (port + 1).toString();
-      const killCmd = `lsof -ti:${portStr} | xargs kill -9`;
-      const altCmd = `PORT=${nextPortStr} npm run dev:server`;
-
-      const eHeader = `❌ ERROR: Port ${portStr} is already in use`.padEnd(BOX_CONTENT_WIDTH);
-      const e1 = 'Another process is using this port.'.padEnd(BOX_CONTENT_WIDTH);
-      const e2 = 'To fix this, try one of:'.padEnd(BOX_CONTENT_WIDTH);
-      const e3 = '1. Kill the process using the port:'.padEnd(BOX_CONTENT_WIDTH);
-      const e4 = `   ${killCmd}`.padEnd(BOX_CONTENT_WIDTH);
-      const e5 = '2. Use a different port:'.padEnd(BOX_CONTENT_WIDTH);
-      const e6 = `   ${altCmd}`.padEnd(BOX_CONTENT_WIDTH);
-      const e7 = '3. Use the init.sh script which handles this:'.padEnd(BOX_CONTENT_WIDTH);
-      const e8 = '   ./init.sh'.padEnd(BOX_CONTENT_WIDTH);
-
-      logger.error(`
-╔═════════════════════════════════════════════════════════════════════╗
-║  ${eHeader}║
-╠═════════════════════════════════════════════════════════════════════╣
-║                                                                     ║
-║  ${e1}║
-║                                                                     ║
-║  ${e2}║
-║                                                                     ║
-║  ${e3}║
-║  ${e4}║
-║                                                                     ║
-║  ${e5}║
-║  ${e6}║
-║                                                                     ║
-║  ${e7}║
-║  ${e8}║
-║                                                                     ║
-╚═════════════════════════════════════════════════════════════════════╝
-`);
-      process.exit(1);
-    } else {
-      logger.error('Error starting server:', error);
-      process.exit(1);
-    }
+    logger.error('Error starting server:', error);
+    process.exit(1);
   });
 };
 
@@ -881,6 +910,7 @@ const gracefulShutdown = async (signal: string) => {
   // Note: markAllRunningFeaturesInterrupted handles errors internally and never rejects
   await autoModeService.markAllRunningFeaturesInterrupted(`${signal} signal received`);
 
+  schedulerService.stop();
   terminalService.cleanup();
   server.close(() => {
     clearTimeout(forceExitTimeout);

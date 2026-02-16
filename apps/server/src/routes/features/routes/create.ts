@@ -3,10 +3,14 @@
  */
 
 import type { Request, Response } from 'express';
+import { CronExpressionParser } from 'cron-parser';
 import { FeatureLoader } from '../../../services/feature-loader.js';
 import type { EventEmitter } from '../../../lib/events.js';
 import type { Feature } from '@automaker/types';
 import { getErrorMessage, logError } from '../common.js';
+import { createLogger } from '@automaker/utils';
+
+const logger = createLogger('features/create');
 
 export function createCreateHandler(featureLoader: FeatureLoader, events?: EventEmitter) {
   return async (req: Request, res: Response): Promise<void> => {
@@ -24,16 +28,27 @@ export function createCreateHandler(featureLoader: FeatureLoader, events?: Event
         return;
       }
 
-      // Check for duplicate title if title is provided
-      if (feature.title && feature.title.trim()) {
-        const duplicate = await featureLoader.findDuplicateTitle(projectPath, feature.title);
-        if (duplicate) {
-          res.status(409).json({
-            success: false,
-            error: `A feature with title "${feature.title}" already exists`,
-            duplicateFeatureId: duplicate.id,
+      // Calculate nextRun and set status to 'scheduled' if schedule is provided and enabled
+      if (feature.schedule?.enabled && feature.schedule?.crontab) {
+        try {
+          const interval = CronExpressionParser.parse(feature.schedule.crontab, {
+            currentDate: new Date(),
           });
-          return;
+          const nextRun = interval.next().toDate();
+          feature.schedule = {
+            ...feature.schedule,
+            nextRun: nextRun.toISOString(),
+          };
+          // Set status to 'scheduled' so the scheduler will pick it up
+          feature.status = 'scheduled';
+          logger.debug(
+            `Calculated nextRun for new feature: ${nextRun.toISOString()}, status set to 'scheduled'`
+          );
+        } catch (err) {
+          logger.warn(
+            `Invalid crontab expression in new feature: ${feature.schedule.crontab}`,
+            err
+          );
         }
       }
 

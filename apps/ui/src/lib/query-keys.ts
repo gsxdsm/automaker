@@ -99,6 +99,10 @@ export const queryKeys = {
     claude: () => ['usage', 'claude'] as const,
     /** Codex API usage */
     codex: () => ['usage', 'codex'] as const,
+    /** z.ai API usage */
+    zai: () => ['usage', 'zai'] as const,
+    /** Gemini API usage */
+    gemini: () => ['usage', 'gemini'] as const,
   },
 
   // ============================================

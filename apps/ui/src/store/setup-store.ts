@@ -112,6 +112,37 @@ export interface CodexAuthStatus {
   error?: string;
 }
 
+// z.ai Auth Method
+export type ZaiAuthMethod =
+  | 'api_key_env' // Z_AI_API_KEY environment variable
+  | 'api_key' // Manually stored API key
+  | 'none';
+
+// z.ai Auth Status
+export interface ZaiAuthStatus {
+  authenticated: boolean;
+  method: ZaiAuthMethod;
+  hasApiKey?: boolean;
+  hasEnvApiKey?: boolean;
+  error?: string;
+}
+
+// Gemini Auth Method
+export type GeminiAuthMethod =
+  | 'cli_login' // Gemini CLI is installed and authenticated
+  | 'api_key_env' // GOOGLE_API_KEY or GEMINI_API_KEY environment variable
+  | 'api_key' // Manually stored API key
+  | 'none';
+
+// Gemini Auth Status
+export interface GeminiAuthStatus {
+  authenticated: boolean;
+  method: GeminiAuthMethod;
+  hasApiKey?: boolean;
+  hasEnvApiKey?: boolean;
+  error?: string;
+}
+
 // Claude Auth Method - all possible authentication sources
 export type ClaudeAuthMethod =
   | 'oauth_token_env'
@@ -185,9 +216,13 @@ export interface SetupState {
 
   // Gemini CLI state
   geminiCliStatus: GeminiCliStatus | null;
+  geminiAuthStatus: GeminiAuthStatus | null;
 
   // Copilot SDK state
   copilotCliStatus: CopilotCliStatus | null;
+
+  // z.ai API state
+  zaiAuthStatus: ZaiAuthStatus | null;
 
   // Setup preferences
   skipClaudeSetup: boolean;
@@ -225,9 +260,13 @@ export interface SetupActions {
 
   // Gemini CLI
   setGeminiCliStatus: (status: GeminiCliStatus | null) => void;
+  setGeminiAuthStatus: (status: GeminiAuthStatus | null) => void;
 
   // Copilot SDK
   setCopilotCliStatus: (status: CopilotCliStatus | null) => void;
+
+  // z.ai API
+  setZaiAuthStatus: (status: ZaiAuthStatus | null) => void;
 
   // Preferences
   setSkipClaudeSetup: (skip: boolean) => void;
@@ -263,8 +302,11 @@ const initialState: SetupState = {
   opencodeCliStatus: null,
 
   geminiCliStatus: null,
+  geminiAuthStatus: null,
 
   copilotCliStatus: null,
+
+  zaiAuthStatus: null,
 
   skipClaudeSetup: shouldSkipSetup,
 };
@@ -340,9 +382,13 @@ export const useSetupStore = create<SetupState & SetupActions>()((set, get) => (
 
   // Gemini CLI
   setGeminiCliStatus: (status) => set({ geminiCliStatus: status }),
+  setGeminiAuthStatus: (status) => set({ geminiAuthStatus: status }),
 
   // Copilot SDK
   setCopilotCliStatus: (status) => set({ copilotCliStatus: status }),
+
+  // z.ai API
+  setZaiAuthStatus: (status) => set({ zaiAuthStatus: status }),
 
   // Preferences
   setSkipClaudeSetup: (skip) => set({ skipClaudeSetup: skip }),

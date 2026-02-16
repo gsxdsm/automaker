@@ -67,6 +67,8 @@ export type {
   FeatureExport,
   FeatureImport,
   FeatureImportResult,
+  FeatureSchedule,
+  SchedulePreset,
   ParsedTask,
   PlanSpec,
 } from './feature.js';
@@ -300,7 +302,14 @@ export type {
 } from './pipeline.js';
 
 // Port configuration
-export { STATIC_PORT, SERVER_PORT, RESERVED_PORTS } from './ports.js';
+export {
+  STATIC_PORT,
+  SERVER_PORT,
+  RESERVED_PORTS,
+  registerRuntimePort,
+  isAutomakerPort,
+  getAutomakerPorts,
+} from './ports.js';
 
 // Editor types
 export type { EditorInfo } from './editor.js';

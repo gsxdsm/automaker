@@ -487,7 +487,7 @@ export const CLAUDE_PROVIDER_TEMPLATES: ClaudeCompatibleProviderTemplate[] = [
     defaultModels: [
       { id: 'GLM-4.5-Air', displayName: 'GLM 4.5 Air', mapsToClaudeModel: 'haiku' },
       { id: 'GLM-4.7', displayName: 'GLM 4.7', mapsToClaudeModel: 'sonnet' },
-      { id: 'GLM-4.7', displayName: 'GLM 4.7', mapsToClaudeModel: 'opus' },
+      { id: 'GLM-5', displayName: 'GLM 5', mapsToClaudeModel: 'opus' },
     ],
   },
   {
@@ -570,7 +570,7 @@ export const CLAUDE_API_PROFILE_TEMPLATES: ClaudeApiProfileTemplate[] = [
     modelMappings: {
       haiku: 'GLM-4.5-Air',
       sonnet: 'GLM-4.7',
-      opus: 'GLM-4.7',
+      opus: 'GLM-5',
     },
     disableNonessentialTraffic: true,
     description: '3× usage at fraction of cost via GLM Coding Plan',
@@ -1287,6 +1287,8 @@ export interface Credentials {
     google: string;
     /** OpenAI API key (for compatibility or alternative providers) */
     openai: string;
+    /** z.ai API key (for GLM models and usage tracking) */
+    zai: string;
   };
 }
 
@@ -1615,6 +1617,7 @@ export const DEFAULT_CREDENTIALS: Credentials = {
     anthropic: '',
     google: '',
     openai: '',
+    zai: '',
   },
 };
 

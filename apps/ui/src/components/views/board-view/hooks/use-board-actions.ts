@@ -120,6 +120,7 @@ export function useBoardActions({
       dependencies?: string[];
       childDependencies?: string[]; // Feature IDs that should depend on this feature
       workMode?: 'current' | 'auto' | 'custom';
+      schedule?: import('@automaker/types').FeatureSchedule;
     }) => {
       const workMode = featureData.workMode || 'current';
 
@@ -219,9 +220,11 @@ export function useBoardActions({
         ...featureData,
         title: titleWasGenerated ? titleForBranch : featureData.title,
         titleGenerating: needsTitleGeneration,
-        status: 'backlog' as const,
+        // Status will be set by server: 'scheduled' if schedule is enabled, otherwise 'backlog'
+        status: (featureData.schedule?.enabled ? 'scheduled' : 'backlog') as const,
         branchName: finalBranchName,
         dependencies: featureData.dependencies || [],
+        schedule: featureData.schedule,
       };
       const createdFeature = addFeature(newFeatureData);
       // Must await to ensure feature exists on server before user can drag it
@@ -934,15 +937,24 @@ export function useBoardActions({
       try {
         await autoMode.stopFeature(feature.id);
 
-        const targetStatus =
-          feature.skipTests && feature.status === 'waiting_approval'
-            ? 'waiting_approval'
-            : 'backlog';
+        // Determine the target status when stopping (for UI feedback):
+        // - waiting_approval features that are skipTests stay in waiting_approval
+        // - scheduled features (with enabled schedule) go back to scheduled
+        // - everything else goes to backlog
+        // Note: Server handles the actual status update, this is just for optimistic UI update
+        let targetStatus: 'waiting_approval' | 'scheduled' | 'backlog';
+        if (feature.skipTests && feature.status === 'waiting_approval') {
+          targetStatus = 'waiting_approval';
+        } else if (feature.schedule?.enabled) {
+          targetStatus = 'scheduled';
+        } else {
+          targetStatus = 'backlog';
+        }
 
+        // Update local state for immediate UI feedback
+        // Server handles the persistent status update via abort handler
         if (targetStatus !== feature.status) {
           moveFeature(feature.id, targetStatus);
-          // Must await to ensure file is written before user can restart
-          await persistFeatureUpdate(feature.id, { status: targetStatus });
         }
 
         toast.success('Agent stopped', {
@@ -951,7 +963,9 @@ export function useBoardActions({
               ? `Stopped commit - returned to waiting approval: ${truncateDescription(
                   feature.description
                 )}`
-              : `Stopped working on: ${truncateDescription(feature.description)}`,
+              : targetStatus === 'scheduled'
+                ? `Stopped - returned to scheduled: ${truncateDescription(feature.description)}`
+                : `Stopped working on: ${truncateDescription(feature.description)}`,
         });
       } catch (error) {
         logger.error('Error stopping feature:', error);
@@ -960,7 +974,7 @@ export function useBoardActions({
         });
       }
     },
-    [autoMode, moveFeature, persistFeatureUpdate]
+    [autoMode, moveFeature]
   );
 
   const handleStartNextFeatures = useCallback(async () => {
@@ -1083,6 +1097,26 @@ export function useBoardActions({
     });
   }, [features, runningAutoTasks, autoMode, updateFeature, persistFeatureUpdate]);
 
+  const handleDuplicateFeature = useCallback(
+    async (feature: Feature, asChild: boolean = false) => {
+      // Copy all feature data, only override id/status (handled by create) and dependencies if as child
+      const { id: _id, status: _status, ...featureData } = feature;
+      const duplicatedFeatureData = {
+        ...featureData,
+        // If duplicating as child, set source as dependency; otherwise keep existing
+        ...(asChild && { dependencies: [feature.id] }),
+      };
+
+      // Reuse the existing handleAddFeature logic
+      await handleAddFeature(duplicatedFeatureData);
+
+      toast.success(asChild ? 'Duplicated as child' : 'Feature duplicated', {
+        description: `Created copy of: ${truncateDescription(feature.description || feature.title || '')}`,
+      });
+    },
+    [handleAddFeature]
+  );
+
   return {
     handleAddFeature,
     handleUpdateFeature,
@@ -1103,5 +1137,6 @@ export function useBoardActions({
     handleForceStopFeature,
     handleStartNextFeatures,
     handleArchiveAllVerified,
+    handleDuplicateFeature,
   };
 }

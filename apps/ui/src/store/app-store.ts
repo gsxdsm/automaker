@@ -87,6 +87,12 @@ import {
   type AutoModeActivity,
   type AppState,
   type AppActions,
+  // File Editor types
+  type OpenTab,
+  type CursorPosition,
+  type FileHistoryEntry,
+  type FileEditorSettings,
+  type MarkdownPreviewMode,
   // Usage types
   type ClaudeUsage,
   type ClaudeUsageResponse,
@@ -94,6 +100,14 @@ import {
   type CodexRateLimitWindow,
   type CodexUsage,
   type CodexUsageResponse,
+  type ZaiPlanType,
+  type ZaiQuotaLimit,
+  type ZaiUsage,
+  type ZaiUsageResponse,
+  type GeminiQuotaBucket,
+  type GeminiTierQuota,
+  type GeminiUsage,
+  type GeminiUsageResponse,
 } from './types';
 
 // Import utility functions from modular utils files
@@ -109,7 +123,16 @@ import {
 } from './utils';
 
 // Import default values from modular defaults files
-import { defaultBackgroundSettings, defaultTerminalState, MAX_INIT_OUTPUT_LINES } from './defaults';
+import {
+  defaultBackgroundSettings,
+  defaultTerminalState,
+  MAX_INIT_OUTPUT_LINES,
+  MAX_FILE_HISTORY_ENTRIES,
+  DEFAULT_AUTO_SAVE_INTERVAL_MS,
+  DEFAULT_EDITOR_FONT_SIZE,
+  DEFAULT_EDITOR_TAB_SIZE,
+  DEFAULT_EDITOR_LINE_HEIGHT,
+} from './defaults';
 
 // Import internal theme utils (not re-exported publicly)
 import {
@@ -167,12 +190,24 @@ export type {
   AutoModeActivity,
   AppState,
   AppActions,
+  OpenTab,
+  CursorPosition,
+  FileHistoryEntry,
+  FileEditorSettings,
   ClaudeUsage,
   ClaudeUsageResponse,
   CodexPlanType,
   CodexRateLimitWindow,
   CodexUsage,
   CodexUsageResponse,
+  ZaiPlanType,
+  ZaiQuotaLimit,
+  ZaiUsage,
+  ZaiUsageResponse,
+  GeminiQuotaBucket,
+  GeminiTierQuota,
+  GeminiUsage,
+  GeminiUsageResponse,
 };
 
 // Re-export values from ./types for backward compatibility
@@ -191,7 +226,13 @@ export {
 };
 
 // Re-export defaults from ./defaults for backward compatibility
-export { defaultBackgroundSettings, defaultTerminalState, MAX_INIT_OUTPUT_LINES } from './defaults';
+export {
+  defaultBackgroundSettings,
+  defaultTerminalState,
+  MAX_INIT_OUTPUT_LINES,
+  MAX_FILE_HISTORY_ENTRIES,
+  DEFAULT_AUTO_SAVE_INTERVAL_MS,
+} from './defaults';
 
 // NOTE: Type definitions moved to ./types/ directory, utilities moved to ./utils/ directory
 // The following inline types have been replaced with imports above:
@@ -202,7 +243,7 @@ export { defaultBackgroundSettings, defaultTerminalState, MAX_INIT_OUTPUT_LINES 
 // - Terminal types (./types/terminal-types.ts)
 // - ClaudeModel, Feature, FileTreeNode, ProjectAnalysis (./types/project-types.ts)
 // - InitScriptState, AutoModeActivity, AppState, AppActions (./types/state-types.ts)
-// - Claude/Codex usage types (./types/usage-types.ts)
+// - Claude/Codex/Zai/Gemini usage types (./types/usage-types.ts)
 // The following utility functions have been moved to ./utils/:
 // - Theme utilities: THEME_STORAGE_KEY, getStoredTheme, getStoredFontSans, getStoredFontMono, etc. (./utils/theme-utils.ts)
 // - Shortcut utilities: parseShortcut, formatShortcut, DEFAULT_KEYBOARD_SHORTCUTS (./utils/shortcut-utils.ts)
@@ -211,6 +252,9 @@ export { defaultBackgroundSettings, defaultTerminalState, MAX_INIT_OUTPUT_LINES 
 // - MAX_INIT_OUTPUT_LINES (./defaults/constants.ts)
 // - defaultBackgroundSettings (./defaults/background-settings.ts)
 // - defaultTerminalState (./defaults/terminal-defaults.ts)
+
+// Type definitions are imported from ./types/state-types.ts
+// AppActions interface is defined in ./types/state-types.ts
 
 const initialState: AppState = {
   projects: [],
@@ -234,6 +278,7 @@ const initialState: AppState = {
     anthropic: '',
     google: '',
     openai: '',
+    zai: '',
   },
   chatSessions: [],
   currentChatSession: null,
@@ -314,6 +359,8 @@ const initialState: AppState = {
   claudeUsageLastUpdated: null,
   codexUsage: null,
   codexUsageLastUpdated: null,
+  zaiUsage: null,
+  zaiUsageLastUpdated: null,
   codexModels: [],
   codexModelsLoading: false,
   codexModelsError: null,
@@ -329,6 +376,30 @@ const initialState: AppState = {
   lastProjectDir: '',
   recentFolders: [],
   initScriptState: {},
+  fileEditorTabs: [],
+  fileEditorActiveTabPath: null,
+  fileEditorHistory: [],
+  fileEditorSettings: {
+    autoSaveEnabled: false,
+    autoSaveIntervalMs: DEFAULT_AUTO_SAVE_INTERVAL_MS,
+    fontSize: DEFAULT_EDITOR_FONT_SIZE,
+    fontFamily: null,
+    tabSize: DEFAULT_EDITOR_TAB_SIZE,
+    indentWithTabs: false,
+    wordWrap: false,
+    showMinimap: false,
+    ligatures: true,
+    lineHeight: DEFAULT_EDITOR_LINE_HEIGHT,
+    showLineNumbers: true,
+    showFoldGutter: true,
+    highlightActiveLine: true,
+    bracketMatching: true,
+    closeBrackets: true,
+    keybindings: 'default',
+    markdownPreviewMode: 'editor',
+  },
+  fileEditorSaveStatus: null,
+  fileEditorWorktreeByProject: {},
 };
 
 export const useAppStore = create<AppState & AppActions>()((set, get) => ({
@@ -949,6 +1020,26 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         },
       };
     });
+  },
+
+  removeRunningTaskFromAllWorktrees: (projectId: string, taskId: string) => {
+    const current = get().autoModeByWorktree;
+    const projectPrefix = `${projectId}::`;
+    const updated: typeof current = {};
+
+    // Iterate through all worktree states and remove the task from any that contain it
+    for (const [key, worktreeState] of Object.entries(current)) {
+      if (key.startsWith(projectPrefix) && worktreeState.runningTasks.includes(taskId)) {
+        updated[key] = {
+          ...worktreeState,
+          runningTasks: worktreeState.runningTasks.filter((id) => id !== taskId),
+        };
+      } else {
+        updated[key] = worktreeState;
+      }
+    }
+
+    set({ autoModeByWorktree: updated });
   },
 
   clearRunningTasks: (projectId: string, branchName: string | null) => {
@@ -2400,6 +2491,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   // Codex Usage Tracking actions
   setCodexUsage: (usage) => set({ codexUsage: usage, codexUsageLastUpdated: Date.now() }),
 
+  // z.ai Usage Tracking actions
+  setZaiUsage: (usage) => set({ zaiUsage: usage, zaiUsageLastUpdated: usage ? Date.now() : null }),
+
   // Codex Models actions
   fetchCodexModels: async (forceRefresh = false) => {
     const state = get();
@@ -2598,6 +2692,158 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     return Object.entries(states)
       .filter(([key]) => key.startsWith(prefix))
       .map(([key, state]) => ({ key, state }));
+  },
+
+  // File Editor actions
+  openFileTab: (path, name, content, language, worktreePath?, worktreeBranch?) => {
+    set((state) => {
+      const existing = state.fileEditorTabs.find((t) => t.path === path);
+      if (existing) {
+        return { fileEditorActiveTabPath: path };
+      }
+      const newTab: OpenTab = {
+        path,
+        name,
+        content,
+        originalContent: content,
+        language,
+        isDirty: false,
+        isLoading: false,
+        cursorPosition: { line: 1, column: 1 },
+        lastModified: undefined,
+        worktreePath,
+        worktreeBranch,
+      };
+      const historyEntry: FileHistoryEntry = { path, openedAt: Date.now() };
+      const newHistory = [
+        historyEntry,
+        ...state.fileEditorHistory.filter((h) => h.path !== path),
+      ].slice(0, MAX_FILE_HISTORY_ENTRIES);
+      return {
+        fileEditorTabs: [...state.fileEditorTabs, newTab],
+        fileEditorActiveTabPath: path,
+        fileEditorHistory: newHistory,
+      };
+    });
+  },
+
+  closeFileTab: (path) => {
+    set((state) => {
+      const tabIndex = state.fileEditorTabs.findIndex((t) => t.path === path);
+      const remaining = state.fileEditorTabs.filter((t) => t.path !== path);
+      let newActiveTabPath = state.fileEditorActiveTabPath;
+      if (newActiveTabPath === path) {
+        if (remaining.length === 0) {
+          newActiveTabPath = null;
+        } else {
+          const newIndex = Math.min(tabIndex, remaining.length - 1);
+          newActiveTabPath = remaining[newIndex]?.path || null;
+        }
+      }
+      const newHistory = state.fileEditorHistory.map((h) =>
+        h.path === path && !h.closedAt ? { ...h, closedAt: Date.now() } : h
+      );
+      return {
+        fileEditorTabs: remaining,
+        fileEditorActiveTabPath: newActiveTabPath,
+        fileEditorHistory: newHistory,
+      };
+    });
+  },
+
+  setActiveFileTab: (path) => set({ fileEditorActiveTabPath: path }),
+
+  updateFileContent: (path, content) => {
+    set((state) => ({
+      fileEditorTabs: state.fileEditorTabs.map((t) =>
+        t.path === path
+          ? {
+              ...t,
+              content,
+              isDirty: content !== t.originalContent,
+              lastModified: Date.now(),
+            }
+          : t
+      ),
+    }));
+  },
+
+  markFileSaved: (path) => {
+    set((state) => ({
+      fileEditorTabs: state.fileEditorTabs.map((t) =>
+        t.path === path ? { ...t, isDirty: false, originalContent: t.content } : t
+      ),
+    }));
+  },
+
+  setFileCursorPosition: (path, position) => {
+    set((state) => ({
+      fileEditorTabs: state.fileEditorTabs.map((t) =>
+        t.path === path ? { ...t, cursorPosition: position } : t
+      ),
+    }));
+  },
+
+  setFileEditorSaveStatus: (status) => set({ fileEditorSaveStatus: status }),
+
+  setFileEditorAutoSave: (enabled) => {
+    set((state) => ({
+      fileEditorSettings: { ...state.fileEditorSettings, autoSaveEnabled: enabled },
+    }));
+  },
+
+  setFileEditorAutoSaveInterval: (intervalMs) => {
+    set((state) => ({
+      fileEditorSettings: { ...state.fileEditorSettings, autoSaveIntervalMs: intervalMs },
+    }));
+  },
+
+  setFileEditorSettings: (settings) => {
+    set((state) => ({
+      fileEditorSettings: { ...state.fileEditorSettings, ...settings },
+    }));
+  },
+
+  clearAllFileTabs: () => {
+    set({
+      fileEditorTabs: [],
+      fileEditorActiveTabPath: null,
+      fileEditorSaveStatus: null,
+    });
+  },
+
+  getActiveFileTab: () => {
+    const state = get();
+    return state.fileEditorTabs.find((t) => t.path === state.fileEditorActiveTabPath) || null;
+  },
+
+  getDirtyFileTabs: () => {
+    return get().fileEditorTabs.filter((t) => t.isDirty);
+  },
+
+  reorderFileTabs: (fromPath, toPath) => {
+    set((state) => {
+      const tabs = [...state.fileEditorTabs];
+      const fromIndex = tabs.findIndex((t) => t.path === fromPath);
+      const toIndex = tabs.findIndex((t) => t.path === toPath);
+      if (fromIndex === -1 || toIndex === -1) return state;
+      const [removed] = tabs.splice(fromIndex, 1);
+      tabs.splice(toIndex, 0, removed);
+      return { fileEditorTabs: tabs };
+    });
+  },
+
+  setFileEditorWorktree: (projectPath, worktree) => {
+    set((state) => ({
+      fileEditorWorktreeByProject: {
+        ...state.fileEditorWorktreeByProject,
+        [projectPath]: worktree,
+      },
+    }));
+  },
+
+  getFileEditorWorktree: (projectPath) => {
+    return get().fileEditorWorktreeByProject[projectPath] ?? null;
   },
 
   // Reset
