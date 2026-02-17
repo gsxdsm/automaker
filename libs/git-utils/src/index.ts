@@ -104,10 +104,15 @@ export {
   mergeBranch,
   abortMerge,
   continueMerge,
+  getMergePreview,
   rebaseBranch,
   abortRebase,
   continueRebase,
   skipRebasePatch,
+  getRebasePreview,
+  getConflictDetails,
+  resolveConflict,
+  applyManualResolution,
 } from './merge-rebase.js';
 
 // Export PR utilities

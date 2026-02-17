@@ -1826,6 +1826,69 @@ export interface GitAPI {
     };
     error?: string;
   }>;
+
+  // Commit history operations
+  getCommitHistory: (
+    projectPath: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      branch?: string;
+      author?: string;
+      since?: string;
+      until?: string;
+    }
+  ) => Promise<{
+    success: boolean;
+    commits?: Array<{
+      hash: string;
+      shortHash: string;
+      author: string;
+      email: string;
+      date: string;
+      message: string;
+      stats?: {
+        filesChanged: number;
+        insertions: number;
+        deletions: number;
+      };
+    }>;
+    error?: string;
+  }>;
+
+  getCommitCount: (
+    projectPath: string,
+    branch?: string
+  ) => Promise<{
+    success: boolean;
+    count?: number;
+    error?: string;
+  }>;
+
+  getCommitFiles: (
+    projectPath: string,
+    commitHash: string
+  ) => Promise<{
+    success: boolean;
+    files?: Array<{
+      path: string;
+      status: 'A' | 'M' | 'D' | 'R' | 'C';
+      additions: number;
+      deletions: number;
+      binary: boolean;
+      oldPath?: string;
+    }>;
+    error?: string;
+  }>;
+
+  getCommitDiff: (
+    projectPath: string,
+    commitHash: string
+  ) => Promise<{
+    success: boolean;
+    diff?: string;
+    error?: string;
+  }>;
 }
 
 // Model definition type

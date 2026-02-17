@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { GitCommitWithStats, CommitFileChange } from '@automaker/git-utils';
-import { getCommitHistoryWithStats, getCommitFiles, getCommitCount } from '@automaker/git-utils';
+import { api } from '@/lib/api';
 
 export interface CommitHistoryFilters {
   author?: string;
@@ -67,20 +67,29 @@ export function useCommitHistory({
         const filters = filtersRef.current;
 
         // Build options for API call
-        const options: Parameters<typeof getCommitHistoryWithStats>[1] = {
+        const options = {
           limit: pageSize,
           offset: actualOffset,
           branch,
+          author: filters.author,
+          since: filters.since,
+          until: filters.until,
         };
 
-        if (filters.author) options.author = filters.author;
-        if (filters.since) options.since = filters.since;
-        if (filters.until) options.until = filters.until;
-
-        const [newCommits, count] = await Promise.all([
-          getCommitHistoryWithStats(repoPath, options),
-          getCommitCount(repoPath, branch),
+        const [commitsResult, countResult] = await Promise.all([
+          api.git.getCommitHistory(repoPath, options),
+          api.git.getCommitCount(repoPath, branch),
         ]);
+
+        if (!commitsResult.success) {
+          throw new Error(commitsResult.error || 'Failed to fetch commit history');
+        }
+        if (!countResult.success) {
+          throw new Error(countResult.error || 'Failed to fetch commit count');
+        }
+
+        const newCommits = (commitsResult.commits || []) as GitCommitWithStats[];
+        const count = countResult.count || 0;
 
         // Apply client-side search filter if needed
         let filteredCommits = newCommits;
@@ -152,7 +161,12 @@ export function useCommitHistory({
       if (!enabled || !repoPath) return null;
 
       try {
-        const files = await getCommitFiles(repoPath, commitHash);
+        const result = await api.git.getCommitFiles(repoPath, commitHash);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load commit files');
+        }
+
+        const files = (result.files || []) as CommitFileChange[];
 
         // Update commit with files
         setCommits((prev) => prev.map((c) => (c.hash === commitHash ? { ...c, files } : c)));

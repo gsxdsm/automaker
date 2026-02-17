@@ -35,6 +35,8 @@ import {
   createGetCommitDiffHandler,
   createGetFileHistoryHandler,
   createGetCommitCountHandler,
+  createHistoryLogWithStatsHandler,
+  createGetCommitFilesHandler,
 } from './routes/history.js';
 
 // Remote operations
@@ -141,7 +143,9 @@ export function createGitRoutes(gitStateService?: GitStateService): Router {
 
   // History operations
   router.post('/history/log', createHistoryLogHandler());
+  router.post('/history/log-with-stats', createHistoryLogWithStatsHandler());
   router.get('/history/commit', createGetCommitHandler());
+  router.get('/history/commit-files', createGetCommitFilesHandler());
   router.post('/history/diff', createGetCommitDiffHandler());
   router.post('/history/file', createGetFileHistoryHandler());
   router.get('/history/count', createGetCommitCountHandler());

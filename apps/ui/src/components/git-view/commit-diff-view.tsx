@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { SplitDiffViewer } from '@/components/ui/split-diff-viewer';
 import { toast } from 'sonner';
-import { getCommitDiff } from '@automaker/git-utils';
+import { api } from '@/lib/api';
 
 export interface CommitDiffViewProps {
   repoPath: string;
@@ -27,8 +27,12 @@ export function CommitDiffView({
     setIsLoading(true);
     setError(null);
     try {
-      const diffText = await getCommitDiff(repoPath, commitHash);
-      setDiff(diffText);
+      const result = await api.git.getCommitDiff(repoPath, commitHash);
+      if (result.success && result.diff) {
+        setDiff(result.diff);
+      } else {
+        throw new Error(result.error || 'Failed to load diff');
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load diff'));
     } finally {

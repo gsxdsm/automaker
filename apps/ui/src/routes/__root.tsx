@@ -14,7 +14,7 @@ import { useAppStore, getStoredTheme, type ThemeMode } from '@/store/app-store';
 import { useSetupStore } from '@/store/setup-store';
 import { useAuthStore } from '@/store/auth-store';
 import { getElectronAPI, isElectron } from '@/lib/electron';
-import { isMac } from '@/lib/utils';
+import { cn, isMac } from '@/lib/utils';
 import { initializeProject } from '@/lib/project-init';
 import {
   initApiKey,
@@ -37,6 +37,7 @@ import { SandboxRejectionScreen } from '@/components/dialogs/sandbox-rejection-s
 import { LoadingState } from '@/components/ui/loading-state';
 import { useProjectSettingsLoader } from '@/hooks/use-project-settings-loader';
 import { useIsCompact } from '@/hooks/use-media-query';
+import { SIDEBAR_DIMENSIONS } from '@/components/layout/sidebar/constants';
 import type { Project } from '@/lib/electron';
 
 const logger = createLogger('RootLayout');
@@ -169,6 +170,8 @@ function RootLayoutContent() {
     fontFamilySans,
     fontFamilyMono,
     sidebarStyle,
+    sidebarOpen,
+    mobileSidebarHidden,
     skipSandboxWarning,
     setSkipSandboxWarning,
     fetchCodexModels,
@@ -181,6 +184,7 @@ function RootLayoutContent() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const settingsLoaded = useAuthStore((s) => s.settingsLoaded);
   const { openFileBrowser } = useFileBrowser();
+  const isCompact = useIsCompact();
 
   // Load project settings when switching projects
   useProjectSettingsLoader();
@@ -859,7 +863,14 @@ function RootLayoutContent() {
         {sidebarStyle === 'discord' && <ProjectSwitcher />}
         <Sidebar />
         <div
-          className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+          className={cn(
+            'flex-1 flex flex-col overflow-hidden transition-all duration-300',
+            // On compact screens, sidebar is fixed/overlay, so add left margin for collapsed sidebar
+            // unless the sidebar is completely hidden on mobile.
+            // In discord mode, ProjectSwitcher (w-16) is still in normal flow,
+            // so this margin only accounts for the fixed sidebar width.
+            isCompact && !mobileSidebarHidden && !sidebarOpen && SIDEBAR_DIMENSIONS.COLLAPSED_MARGIN
+          )}
           style={{ marginRight: streamerPanelOpen ? '250px' : '0' }}
         >
           <Outlet />

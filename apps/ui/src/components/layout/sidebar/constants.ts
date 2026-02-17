@@ -51,6 +51,25 @@ export const PROJECT_LIGHT_THEMES = lightThemes.map((opt) => ({
   color: opt.color,
 }));
 
+/**
+ * Sidebar layout constants.
+ * Centralizes magic numbers used across sidebar components and hooks.
+ */
+export const SIDEBAR_DIMENSIONS = {
+  /** Breakpoint (px) at which the sidebar switches to compact/mobile mode. Must match useIsCompact(). */
+  COMPACT_BREAKPOINT: 1240,
+  /** Expanded sidebar width as a Tailwind class */
+  EXPANDED_WIDTH: 'w-[17rem]',
+  /** Collapsed sidebar width as a Tailwind class */
+  COLLAPSED_WIDTH: 'w-14',
+  /** Collapsed sidebar margin-left offset as a Tailwind class (matches COLLAPSED_WIDTH) */
+  COLLAPSED_MARGIN: 'ml-14',
+  /** ProjectSwitcher (discord mode) left-offset as a Tailwind class */
+  DISCORD_LEFT_OFFSET: 'left-16',
+  /** Sidebar transition duration in ms — keep in sync with Tailwind `duration-300` */
+  TRANSITION_MS: 300,
+} as const;
+
 export const SIDEBAR_FEATURE_FLAGS = {
   hideTerminal: import.meta.env.VITE_HIDE_TERMINAL === 'true',
   hideWiki: import.meta.env.VITE_HIDE_WIKI === 'true',

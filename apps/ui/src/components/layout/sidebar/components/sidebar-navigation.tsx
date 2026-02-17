@@ -117,7 +117,7 @@ export function SidebarNavigation({
     <nav
       ref={navRef}
       className={cn(
-        'flex-1 overflow-y-auto scrollbar-hide px-3 pb-2',
+        'flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide px-3 pb-2',
         // Add top padding in discord mode since there's no header
         // Extra padding for macOS Electron to avoid traffic light overlap
         sidebarStyle === 'discord'

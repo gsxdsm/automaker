@@ -16,16 +16,37 @@ export function CollapseToggleButton({
 }: CollapseToggleButtonProps) {
   const isCompact = useIsCompact();
 
-  // Hide when in compact mode (mobile menu is shown in board header)
+  // On compact screens when sidebar is open, show a close button inside the sidebar header area
   if (isCompact) {
-    return null;
+    if (!sidebarOpen) {
+      // When collapsed on compact, don't show the toggle here - the collapsed nav items handle expansion
+      return null;
+    }
+    // When expanded on compact, show an inline close button
+    return (
+      <button
+        onClick={toggleSidebar}
+        className={cn(
+          'absolute top-3 right-3 z-40',
+          'flex items-center justify-center w-7 h-7 rounded-full',
+          'bg-card/80 backdrop-blur-sm border border-border/60',
+          'text-muted-foreground hover:text-foreground hover:bg-accent/80',
+          'transition-all duration-200 ease-out',
+          'hover:scale-110 active:scale-90'
+        )}
+        aria-label="Close sidebar"
+        data-testid="sidebar-collapse-button"
+      >
+        <PanelLeftClose className="w-3.5 h-3.5 pointer-events-none" />
+      </button>
+    );
   }
 
   return (
     <button
       onClick={toggleSidebar}
       className={cn(
-        'flex absolute top-[40px] -right-3.5 z-9999',
+        'flex absolute top-[40px] -right-3.5 z-40',
         'group/toggle items-center justify-center w-7 h-7 rounded-full',
         // Glass morphism button
         'bg-card/95 backdrop-blur-sm border border-border/80',

@@ -2323,6 +2323,28 @@ export class HttpApiClient implements ElectronAPI {
           error: result.error,
         })
       ),
+    // Commit history operations
+    getCommitHistory: (
+      projectPath: string,
+      options?: {
+        limit?: number;
+        offset?: number;
+        branch?: string;
+        author?: string;
+        since?: string;
+        until?: string;
+      }
+    ) => this.post('/api/git/history/log-with-stats', { repoPath: projectPath, ...options }),
+    getCommitCount: (projectPath: string, branch?: string) =>
+      this.get(
+        `/api/git/history/count?repoPath=${encodeURIComponent(projectPath)}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}`
+      ),
+    getCommitFiles: (projectPath: string, commitHash: string) =>
+      this.get(
+        `/api/git/history/commit-files?repoPath=${encodeURIComponent(projectPath)}&hash=${encodeURIComponent(commitHash)}`
+      ),
+    getCommitDiff: (projectPath: string, commitHash: string) =>
+      this.post('/api/git/history/diff', { repoPath: projectPath, hash: commitHash }),
     // Stash operations
     listStashes: (projectPath: string) =>
       this.get(`/api/git/stash/list?repoPath=${encodeURIComponent(projectPath)}`),

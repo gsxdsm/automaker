@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createLogger } from '@automaker/utils/logger';
 import { useNavigate, useLocation } from '@tanstack/react-router';
-import { PanelLeftClose, ChevronDown } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store';
 import { useNotificationsStore } from '@/store/notifications-store';
@@ -20,7 +20,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from './components';
-import { SIDEBAR_FEATURE_FLAGS } from './constants';
+import { SIDEBAR_FEATURE_FLAGS, SIDEBAR_DIMENSIONS } from './constants';
 import {
   useSidebarAutoCollapse,
   useRunningAgents,
@@ -322,16 +322,40 @@ export function Sidebar() {
   // Check if sidebar should be completely hidden on mobile
   const shouldHideSidebar = isCompact && mobileSidebarHidden;
 
+  /** Compute position/size classes for the sidebar based on screen size and state */
+  const getSidebarPositionClasses = () => {
+    if (shouldHideSidebar) return 'hidden';
+
+    const widthClass = sidebarOpen
+      ? SIDEBAR_DIMENSIONS.EXPANDED_WIDTH
+      : SIDEBAR_DIMENSIONS.COLLAPSED_WIDTH;
+
+    if (isCompact) {
+      // Compact/Mobile: fixed overlay, full height
+      // In discord mode, offset left by the ProjectSwitcher width
+      const leftClass =
+        sidebarStyle === 'discord' ? SIDEBAR_DIMENSIONS.DISCORD_LEFT_OFFSET : 'left-0';
+      return cn('fixed inset-y-0 h-full', widthClass, leftClass);
+    }
+
+    // Desktop: relative positioning, part of normal flow
+    return cn('relative h-full', widthClass);
+  };
+
   return (
     <>
       {/* Floating toggle to show sidebar on mobile when hidden */}
       <MobileSidebarToggle />
 
-      {/* Mobile backdrop overlay */}
-      {sidebarOpen && !shouldHideSidebar && (
+      {/* Mobile backdrop overlay - only when sidebar is expanded on compact screens */}
+      {isCompact && sidebarOpen && !shouldHideSidebar && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-20"
           onClick={toggleSidebar}
+          onKeyDown={(e) => e.key === 'Escape' && toggleSidebar()}
+          role="button"
+          tabIndex={-1}
+          aria-label="Close sidebar overlay"
           data-testid="sidebar-backdrop"
         />
       )}
@@ -345,13 +369,8 @@ export function Sidebar() {
           'border-r border-border/60 shadow-[1px_0_20px_-5px_rgba(0,0,0,0.1)]',
           // Smooth width transition
           'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-          // Mobile: completely hidden when mobileSidebarHidden is true
-          shouldHideSidebar && 'hidden',
-          // Width based on state
-          !shouldHideSidebar &&
-            (sidebarOpen
-              ? 'fixed inset-y-0 left-0 w-[17rem] lg:relative lg:w-[17rem]'
-              : 'relative w-14')
+          // Position, size, and visibility based on screen size and sidebar state
+          getSidebarPositionClasses()
         )}
         data-testid="sidebar"
       >
@@ -361,24 +380,43 @@ export function Sidebar() {
           shortcut={shortcuts.toggleSidebar}
         />
 
-        {/* Floating hide button on right edge - only visible on compact screens when sidebar is collapsed */}
+        {/* Compact/mobile collapsed sidebar controls */}
         {!sidebarOpen && isCompact && (
-          <button
-            onClick={toggleMobileSidebarHidden}
-            className={cn(
-              'absolute -right-6 top-1/2 -translate-y-1/2 z-40',
-              'flex items-center justify-center w-6 h-10 rounded-r-lg',
-              'bg-card/95 backdrop-blur-sm border border-l-0 border-border/80',
-              'text-muted-foreground hover:text-brand-500 hover:bg-accent/80',
-              'shadow-lg hover:shadow-xl hover:shadow-brand-500/10',
-              'transition-all duration-200',
-              'hover:w-8 active:scale-95'
-            )}
-            aria-label="Hide sidebar"
-            data-testid="sidebar-mobile-hide"
-          >
-            <PanelLeftClose className="w-3.5 h-3.5" />
-          </button>
+          <>
+            {/* Expand button at the top of collapsed sidebar on compact screens */}
+            <button
+              onClick={toggleSidebar}
+              className={cn(
+                'flex shrink-0 items-center justify-center w-10 h-10 mx-auto mt-3 mb-1 rounded-xl',
+                'text-muted-foreground hover:text-brand-500 hover:bg-accent/50',
+                'border border-transparent hover:border-border/40',
+                'transition-all duration-200 ease-out',
+                'active:scale-90'
+              )}
+              aria-label="Expand sidebar"
+              data-testid="sidebar-mobile-expand"
+            >
+              <PanelLeft className="w-[18px] h-[18px]" />
+            </button>
+
+            {/* Floating hide button on right edge */}
+            <button
+              onClick={toggleMobileSidebarHidden}
+              className={cn(
+                'absolute -right-6 top-1/2 -translate-y-1/2 z-40',
+                'flex items-center justify-center w-6 h-10 rounded-r-lg',
+                'bg-card/95 backdrop-blur-sm border border-l-0 border-border/80',
+                'text-muted-foreground hover:text-brand-500 hover:bg-accent/80',
+                'shadow-lg hover:shadow-xl hover:shadow-brand-500/10',
+                'transition-all duration-200',
+                'hover:w-8 active:scale-95'
+              )}
+              aria-label="Hide sidebar"
+              data-testid="sidebar-mobile-hide"
+            >
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            </button>
+          </>
         )}
 
         <div className="flex-1 flex flex-col overflow-hidden">

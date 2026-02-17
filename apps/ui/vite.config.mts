@@ -82,8 +82,12 @@ export default defineConfig(({ command }) => {
         external: [
           'child_process',
           'fs',
+          'fs/promises',
+          'node:fs/promises',
           'path',
+          'node:path',
           'crypto',
+          'node:crypto',
           'http',
           'net',
           'os',
@@ -95,7 +99,7 @@ export default defineConfig(({ command }) => {
       },
     },
     optimizeDeps: {
-      exclude: ['@automaker/platform'],
+      exclude: ['@automaker/platform', '@automaker/git-utils'],
     },
     define: {
       __APP_VERSION__: JSON.stringify(appVersion),

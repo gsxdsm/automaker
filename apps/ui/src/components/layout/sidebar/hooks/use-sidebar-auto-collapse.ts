@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { SIDEBAR_DIMENSIONS } from '../constants';
 
 interface UseSidebarAutoCollapseProps {
   sidebarOpen: boolean;
@@ -13,7 +14,7 @@ export function useSidebarAutoCollapse({
 
   // Auto-collapse sidebar on small screens
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 1024px)'); // lg breakpoint
+    const mediaQuery = window.matchMedia(`(max-width: ${SIDEBAR_DIMENSIONS.COMPACT_BREAKPOINT}px)`);
 
     const handleResize = () => {
       if (mediaQuery.matches && sidebarOpen) {

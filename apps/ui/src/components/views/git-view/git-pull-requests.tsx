@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
-  GitPullRequest,
+  GitPullRequest as GitPullRequestIcon,
   GitMerge,
   CheckCircle2,
   XCircle,
@@ -382,7 +382,7 @@ function PRListHeader({
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
-        <GitPullRequest className="h-4 w-4 text-brand-500" />
+        <GitPullRequestIcon className="h-4 w-4 text-brand-500" />
         <span
           className={cn(
             'font-medium',
@@ -460,7 +460,7 @@ function PRList({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-muted-foreground text-sm">
-          <GitPullRequest className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          <GitPullRequestIcon className="h-8 w-8 mx-auto mb-2 opacity-30" />
           <p>No pull requests found</p>
           <p className="text-xs mt-1">Try changing the filter or create a new PR</p>
         </div>

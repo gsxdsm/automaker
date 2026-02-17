@@ -9,6 +9,8 @@ import {
   getCommitDiff,
   getFileHistory,
   getCommitCount,
+  getCommitHistoryWithStats,
+  getCommitFiles,
   isGitRepo,
 } from '@automaker/git-utils';
 import { getErrorMessage, createLogError } from '../../common.js';
@@ -176,6 +178,77 @@ export function createGetCommitCountHandler() {
       res.json({ success: true, count });
     } catch (error) {
       logError(error, 'Get commit count failed');
+      res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+  };
+}
+
+/**
+ * POST /history/log-with-stats - Get commit history with stats
+ */
+export function createHistoryLogWithStatsHandler() {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { repoPath, limit, offset, branch, author, since, until } = req.body as {
+        repoPath: string;
+        limit?: number;
+        offset?: number;
+        branch?: string;
+        author?: string;
+        since?: string;
+        until?: string;
+      };
+
+      if (!repoPath) {
+        res.status(400).json({ success: false, error: 'repoPath is required' });
+        return;
+      }
+
+      const isRepo = await isGitRepo(repoPath);
+      if (!isRepo) {
+        res.status(400).json({ success: false, error: 'Not a git repository' });
+        return;
+      }
+
+      const commits = await getCommitHistoryWithStats(repoPath, {
+        limit,
+        offset,
+        branch,
+        author,
+        since,
+        until,
+      });
+      res.json({ success: true, commits });
+    } catch (error) {
+      logError(error, 'Get commit history with stats failed');
+      res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+  };
+}
+
+/**
+ * GET /history/commit-files - Get files changed in a commit
+ */
+export function createGetCommitFilesHandler() {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { repoPath, hash } = req.query as { repoPath?: string; hash?: string };
+
+      if (!repoPath || !hash) {
+        res.status(400).json({ success: false, error: 'repoPath and hash are required' });
+        return;
+      }
+
+      const isRepo = await isGitRepo(repoPath);
+      if (!isRepo) {
+        res.status(400).json({ success: false, error: 'Not a git repository' });
+        return;
+      }
+
+      const files = await getCommitFiles(repoPath, hash);
+      res.json({ success: true, files });
+    } catch (error) {
+      logError(error, 'Get commit files failed');
       res.status(500).json({ success: false, error: getErrorMessage(error) });
     }
   };

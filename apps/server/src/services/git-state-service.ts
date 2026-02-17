@@ -18,7 +18,6 @@ import {
 } from '@automaker/git-utils';
 import { createLogger } from '@automaker/utils';
 import type {
-  EventEmitter,
   GitRepositoryState,
   GitStateCacheEntry,
   GitStateChange,
@@ -29,6 +28,7 @@ import type {
   BranchInfo,
   UncommittedChanges,
 } from '@automaker/types';
+import type { EventEmitter } from '../lib/events.js';
 
 const execAsync = promisify(exec);
 
@@ -238,7 +238,7 @@ export class GitStateService {
         return {
           name: branch.name,
           isCurrent: branch.name === currentBranch,
-          isRemote: branch.isRemote,
+          isRemote: branch.isRemote ?? false,
           remoteStatus,
         };
       });
