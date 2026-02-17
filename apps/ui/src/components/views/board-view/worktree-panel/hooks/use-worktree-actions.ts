@@ -5,6 +5,8 @@ import { getElectronAPI } from '@/lib/electron';
 import { toast } from 'sonner';
 import {
   useSwitchBranch,
+  useStashAndSwitch,
+  useCheckoutRemoteBranch,
   usePullWorktree,
   usePushWorktree,
   useOpenInEditor,
@@ -17,22 +19,104 @@ export function useWorktreeActions() {
   const navigate = useNavigate();
   const [isActivating, setIsActivating] = useState(false);
 
+  // Stash dialog state
+  const [stashDialogOpen, setStashDialogOpen] = useState(false);
+  const [pendingBranchSwitch, setPendingBranchSwitch] = useState<{
+    worktree: WorktreeInfo;
+    branchName: string;
+    isRemote: boolean;
+  } | null>(null);
+
   // Use React Query mutations
   const switchBranchMutation = useSwitchBranch();
+  const stashAndSwitchMutation = useStashAndSwitch();
+  const checkoutRemoteBranchMutation = useCheckoutRemoteBranch();
   const pullMutation = usePullWorktree();
   const pushMutation = usePushWorktree();
   const openInEditorMutation = useOpenInEditor();
 
   const handleSwitchBranch = useCallback(
-    async (worktree: WorktreeInfo, branchName: string) => {
-      if (switchBranchMutation.isPending || branchName === worktree.branch) return;
-      switchBranchMutation.mutate({
+    async (worktree: WorktreeInfo, branchName: string, isRemote = false) => {
+      const isAnySwitching =
+        switchBranchMutation.isPending ||
+        stashAndSwitchMutation.isPending ||
+        checkoutRemoteBranchMutation.isPending;
+
+      if (isAnySwitching || branchName === worktree.branch) return;
+
+      if (isRemote) {
+        // For remote branches, use the checkout-remote-branch endpoint
+        // It will return UNCOMMITTED_CHANGES error code if stashing is needed
+        checkoutRemoteBranchMutation.mutate(
+          {
+            worktreePath: worktree.path,
+            remoteBranchName: branchName,
+            stashChanges: false,
+          },
+          {
+            onError: (error: Error & { code?: string; changesSummary?: string }) => {
+              if (error.code === 'UNCOMMITTED_CHANGES') {
+                // Show the stash dialog
+                setPendingBranchSwitch({ worktree, branchName, isRemote: true });
+                setStashDialogOpen(true);
+              }
+              // Other errors are handled by the mutation's onError
+            },
+          }
+        );
+      } else {
+        // For local branches, try switching first
+        switchBranchMutation.mutate(
+          {
+            worktreePath: worktree.path,
+            branchName,
+          },
+          {
+            onError: (error: Error & { code?: string }) => {
+              if (
+                error.message?.includes('uncommitted') ||
+                error.message?.includes('UNCOMMITTED_CHANGES') ||
+                error.code === 'UNCOMMITTED_CHANGES'
+              ) {
+                // Show the stash dialog
+                setPendingBranchSwitch({ worktree, branchName, isRemote: false });
+                setStashDialogOpen(true);
+              }
+              // Other errors are handled by the mutation's onError
+            },
+          }
+        );
+      }
+    },
+    [switchBranchMutation, stashAndSwitchMutation, checkoutRemoteBranchMutation]
+  );
+
+  const handleConfirmStashAndSwitch = useCallback(() => {
+    if (!pendingBranchSwitch) return;
+
+    const { worktree, branchName, isRemote } = pendingBranchSwitch;
+
+    if (isRemote) {
+      checkoutRemoteBranchMutation.mutate({
+        worktreePath: worktree.path,
+        remoteBranchName: branchName,
+        stashChanges: true,
+      });
+    } else {
+      stashAndSwitchMutation.mutate({
         worktreePath: worktree.path,
         branchName,
       });
-    },
-    [switchBranchMutation]
-  );
+    }
+
+    setStashDialogOpen(false);
+    setPendingBranchSwitch(null);
+  }, [pendingBranchSwitch, stashAndSwitchMutation, checkoutRemoteBranchMutation]);
+
+  const handleCancelStashDialog = useCallback(() => {
+    setStashDialogOpen(false);
+    setPendingBranchSwitch(null);
+  }, []);
 
   const handlePull = useCallback(
     async (worktree: WorktreeInfo) => {
@@ -99,7 +183,10 @@ export function useWorktreeActions() {
   return {
     isPulling: pullMutation.isPending,
     isPushing: pushMutation.isPending,
-    isSwitching: switchBranchMutation.isPending,
+    isSwitching:
+      switchBranchMutation.isPending ||
+      stashAndSwitchMutation.isPending ||
+      checkoutRemoteBranchMutation.isPending,
     isActivating,
     setIsActivating,
     handleSwitchBranch,
@@ -108,5 +195,11 @@ export function useWorktreeActions() {
     handleOpenInIntegratedTerminal,
     handleOpenInEditor,
     handleOpenInExternalTerminal,
+    // Stash dialog state
+    stashDialogOpen,
+    setStashDialogOpen,
+    pendingBranchSwitch,
+    handleConfirmStashAndSwitch,
+    handleCancelStashDialog,
   };
 }

@@ -2428,6 +2428,48 @@ function createMockWorktreeAPI(): WorktreeAPI {
       };
     },
 
+    stashAndSwitch: async (worktreePath: string, branchName: string) => {
+      console.log('[Mock] Stash and switch to branch:', { worktreePath, branchName });
+      return {
+        success: true,
+        result: {
+          previousBranch: 'main',
+          currentBranch: branchName,
+          message: `Stashed changes and switched to branch '${branchName}'`,
+          stashed: true,
+          stashApplied: true,
+          stashPreserved: false,
+        },
+      };
+    },
+
+    checkoutRemoteBranch: async (
+      worktreePath: string,
+      remoteBranchName: string,
+      stashChanges?: boolean
+    ) => {
+      console.log('[Mock] Checkout remote branch:', {
+        worktreePath,
+        remoteBranchName,
+        stashChanges,
+      });
+      const localBranch = remoteBranchName.split('/').slice(1).join('/');
+      return {
+        success: true,
+        result: {
+          previousBranch: 'main',
+          currentBranch: localBranch,
+          remoteBranch: remoteBranchName,
+          localBranch,
+          isNewLocalBranch: true,
+          message: `Created local branch '${localBranch}' tracking '${remoteBranchName}'`,
+          stashed: !!stashChanges,
+          stashApplied: !!stashChanges,
+          stashPreserved: false,
+        },
+      };
+    },
+
     listRemotes: async (worktreePath: string) => {
       console.log('[Mock] Listing remotes for:', worktreePath);
       return {

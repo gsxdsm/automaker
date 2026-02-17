@@ -922,6 +922,7 @@ export function PhaseModelSelector({
       >
         <Popover
           open={isExpanded}
+          modal={false}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setExpandedCodexModel(null);
@@ -1348,6 +1349,7 @@ export function PhaseModelSelector({
       >
         <Popover
           open={isExpanded}
+          modal={false}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setExpandedProviderModel(null);
@@ -1619,6 +1621,7 @@ export function PhaseModelSelector({
       >
         <Popover
           open={isExpanded}
+          modal={false}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setExpandedClaudeModel(null);
@@ -1838,6 +1841,7 @@ export function PhaseModelSelector({
       >
         <Popover
           open={isExpanded}
+          modal={false}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setExpandedGroup(null);

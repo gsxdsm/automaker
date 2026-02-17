@@ -69,7 +69,7 @@ export interface WorktreeDropdownProps {
   isSwitching: boolean;
   onBranchDropdownOpenChange: (worktree: WorktreeInfo) => (open: boolean) => void;
   onBranchFilterChange: (value: string) => void;
-  onSwitchBranch: (worktree: WorktreeInfo, branchName: string) => void;
+  onSwitchBranch: (worktree: WorktreeInfo, branchName: string, isRemote: boolean) => void;
   onCreateBranch: (worktree: WorktreeInfo) => void;
 
   // Action dropdown props

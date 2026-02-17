@@ -92,6 +92,11 @@ export function createListBranchesHandler() {
               // Skip HEAD pointers like "origin/HEAD"
               if (cleanName.includes('/HEAD')) return;
 
+              // Skip entries that are just the remote name without a branch path
+              // A valid remote branch must have format "remote/branchname"
+              const slashIndex = cleanName.indexOf('/');
+              if (slashIndex === -1 || slashIndex === cleanName.length - 1) return;
+
               // Only add remote branches if a branch with the exact same name isn't already
               // in the list. This avoids duplicates if a local branch is named like a remote one.
               // Note: We intentionally include remote branches even when a local branch with the

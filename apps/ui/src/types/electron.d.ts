@@ -999,6 +999,50 @@ export interface WorktreeAPI {
     code?: 'NOT_GIT_REPO' | 'NO_COMMITS' | 'UNCOMMITTED_CHANGES';
   }>;
 
+  // Stash changes and switch to a branch
+  stashAndSwitch: (
+    worktreePath: string,
+    branchName: string
+  ) => Promise<{
+    success: boolean;
+    result?: {
+      previousBranch: string;
+      currentBranch: string;
+      message: string;
+      stashed: boolean;
+      stashApplied?: boolean;
+      stashPreserved?: boolean;
+      stashRef?: string;
+      stashError?: string;
+    };
+    error?: string;
+  }>;
+
+  // Checkout a remote branch (creates local tracking branch if needed)
+  checkoutRemoteBranch: (
+    worktreePath: string,
+    remoteBranchName: string,
+    stashChanges?: boolean
+  ) => Promise<{
+    success: boolean;
+    result?: {
+      previousBranch: string;
+      currentBranch: string;
+      remoteBranch: string;
+      localBranch: string;
+      isNewLocalBranch: boolean;
+      message: string;
+      stashed: boolean;
+      stashApplied?: boolean;
+      stashPreserved?: boolean;
+      stashRef?: string;
+      stashError?: string;
+    };
+    error?: string;
+    code?: 'FETCH_FAILED' | 'REMOTE_BRANCH_NOT_FOUND' | 'UNCOMMITTED_CHANGES';
+    changesSummary?: string;
+  }>;
+
   // List all remotes and their branches
   listRemotes: (worktreePath: string) => Promise<{
     success: boolean;

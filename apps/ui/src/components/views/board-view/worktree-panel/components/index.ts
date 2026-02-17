@@ -1,4 +1,5 @@
 export { BranchSwitchDropdown } from './branch-switch-dropdown';
+export { StashChangesDialog } from './stash-changes-dialog';
 export { DevServerLogsPanel } from './dev-server-logs-panel';
 export { WorktreeActionsDropdown } from './worktree-actions-dropdown';
 export { WorktreeDropdown } from './worktree-dropdown';

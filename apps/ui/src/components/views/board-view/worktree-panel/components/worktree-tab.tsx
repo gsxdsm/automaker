@@ -50,7 +50,7 @@ interface WorktreeTabProps {
   onBranchDropdownOpenChange: (open: boolean) => void;
   onActionsDropdownOpenChange: (open: boolean) => void;
   onBranchFilterChange: (value: string) => void;
-  onSwitchBranch: (worktree: WorktreeInfo, branchName: string) => void;
+  onSwitchBranch: (worktree: WorktreeInfo, branchName: string, isRemote: boolean) => void;
   onCreateBranch: (worktree: WorktreeInfo) => void;
   onPull: (worktree: WorktreeInfo) => void;
   onPush: (worktree: WorktreeInfo) => void;

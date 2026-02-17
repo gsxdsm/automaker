@@ -40,7 +40,7 @@ import type {
   AgentModel,
   FeatureSchedule,
 } from '@automaker/types';
-import { supportsReasoningEffort, isClaudeModel } from '@automaker/types';
+import { supportsReasoningEffort, isClaudeModel, isAdaptiveThinkingModel } from '@automaker/types';
 import {
   PrioritySelector,
   WorkModeSelector,
@@ -438,13 +438,19 @@ export function AddFeatureDialog({
         data-testid="add-feature-dialog"
         onPointerDownOutside={(e: CustomEvent) => {
           const target = e.target as HTMLElement;
-          if (target.closest('[data-testid="category-autocomplete-list"]')) {
+          if (
+            target.closest('[data-testid="category-autocomplete-list"]') ||
+            target.closest('[data-slot="popover-content"]')
+          ) {
             e.preventDefault();
           }
         }}
         onInteractOutside={(e: CustomEvent) => {
           const target = e.target as HTMLElement;
-          if (target.closest('[data-testid="category-autocomplete-list"]')) {
+          if (
+            target.closest('[data-testid="category-autocomplete-list"]') ||
+            target.closest('[data-slot="popover-content"]')
+          ) {
             e.preventDefault();
           }
         }}

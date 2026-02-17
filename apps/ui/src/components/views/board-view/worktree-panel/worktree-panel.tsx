@@ -28,6 +28,7 @@ import {
   WorktreeMobileDropdown,
   WorktreeActionsDropdown,
   BranchSwitchDropdown,
+  StashChangesDialog,
   WorktreeDropdown,
 } from './components';
 import { useAppStore } from '@/store/app-store';
@@ -101,6 +102,10 @@ export function WorktreePanel({
     handleOpenInIntegratedTerminal,
     handleOpenInEditor,
     handleOpenInExternalTerminal,
+    stashDialogOpen,
+    setStashDialogOpen,
+    pendingBranchSwitch,
+    handleConfirmStashAndSwitch,
   } = useWorktreeActions();
 
   const { hasRunningFeatures } = useRunningFeatures({
@@ -684,6 +689,15 @@ export function WorktreePanel({
           confirmVariant="destructive"
         />
 
+        {/* Stash Changes & Switch Branch Dialog */}
+        <StashChangesDialog
+          open={stashDialogOpen}
+          onOpenChange={setStashDialogOpen}
+          onConfirm={handleConfirmStashAndSwitch}
+          targetBranch={pendingBranchSwitch?.branchName ?? ''}
+          isRemoteBranch={pendingBranchSwitch?.isRemote}
+        />
+
         {/* Dev Server Logs Panel */}
         <DevServerLogsPanel
           open={logPanelOpen}
@@ -1018,6 +1032,15 @@ export function WorktreePanel({
         iconClassName="text-destructive"
         confirmText="Discard Changes"
         confirmVariant="destructive"
+      />
+
+      {/* Stash Changes & Switch Branch Dialog */}
+      <StashChangesDialog
+        open={stashDialogOpen}
+        onOpenChange={setStashDialogOpen}
+        onConfirm={handleConfirmStashAndSwitch}
+        targetBranch={pendingBranchSwitch?.branchName ?? ''}
+        isRemoteBranch={pendingBranchSwitch?.isRemote}
       />
 
       {/* Dev Server Logs Panel */}

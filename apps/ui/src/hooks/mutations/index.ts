@@ -49,6 +49,8 @@ export {
   useCreatePullRequest,
   useMergeWorktree,
   useSwitchBranch,
+  useStashAndSwitch,
+  useCheckoutRemoteBranch,
   useCheckoutBranch,
   useGenerateCommitMessage,
   useOpenInEditor,

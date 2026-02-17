@@ -17,7 +17,7 @@ export function useBranches() {
     data: branchData,
     isLoading: isLoadingBranches,
     refetch,
-  } = useWorktreeBranches(currentWorktreePath);
+  } = useWorktreeBranches(currentWorktreePath, true);
 
   const branches = branchData?.branches ?? [];
   const aheadCount = branchData?.aheadCount ?? 0;

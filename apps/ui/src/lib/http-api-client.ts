@@ -2165,6 +2165,18 @@ export class HttpApiClient implements ElectronAPI {
       this.post('/api/worktree/list-branches', { worktreePath, includeRemote }),
     switchBranch: (worktreePath: string, branchName: string) =>
       this.post('/api/worktree/switch-branch', { worktreePath, branchName }),
+    stashAndSwitch: (worktreePath: string, branchName: string) =>
+      this.post('/api/worktree/stash-and-switch', { worktreePath, branchName }),
+    checkoutRemoteBranch: (
+      worktreePath: string,
+      remoteBranchName: string,
+      stashChanges?: boolean
+    ) =>
+      this.post('/api/worktree/checkout-remote-branch', {
+        worktreePath,
+        remoteBranchName,
+        stashChanges,
+      }),
     listRemotes: (worktreePath: string) =>
       this.post('/api/worktree/list-remotes', { worktreePath }),
     addRemote: (worktreePath: string, remoteName: string, remoteUrl: string) =>

@@ -295,7 +295,11 @@ export function useSwitchBranch() {
       if (!api.worktree) throw new Error('Worktree API not available');
       const result = await api.worktree.switchBranch(worktreePath, branchName);
       if (!result.success) {
-        throw new Error(result.error || 'Failed to switch branch');
+        const error = new Error(result.error || 'Failed to switch branch') as Error & {
+          code?: string;
+        };
+        error.code = result.code;
+        throw error;
       }
       return result.result;
     },
@@ -303,8 +307,118 @@ export function useSwitchBranch() {
       queryClient.invalidateQueries({ queryKey: ['worktrees'] });
       toast.success('Switched branch');
     },
+    onError: (error: Error & { code?: string }) => {
+      // Don't show toast for UNCOMMITTED_CHANGES — the stash dialog will handle it
+      if (error.code === 'UNCOMMITTED_CHANGES') return;
+      toast.error('Failed to switch branch', {
+        description: error.message,
+      });
+    },
+  });
+}
+
+/**
+ * Stash changes and switch to a different branch
+ *
+ * @returns Mutation for stashing and switching branches
+ */
+export function useStashAndSwitch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      worktreePath,
+      branchName,
+    }: {
+      worktreePath: string;
+      branchName: string;
+    }) => {
+      const api = getElectronAPI();
+      if (!api.worktree) throw new Error('Worktree API not available');
+      const result = await api.worktree.stashAndSwitch(worktreePath, branchName);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to stash and switch branch');
+      }
+      return result.result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['worktrees'] });
+      if (result?.stashPreserved) {
+        toast.warning('Switched branch with stash conflict', {
+          description: result.message,
+          duration: 8000,
+        });
+      } else {
+        toast.success('Switched branch', {
+          description: result?.message,
+        });
+      }
+    },
     onError: (error: Error) => {
       toast.error('Failed to switch branch', {
+        description: error.message,
+      });
+    },
+  });
+}
+
+/**
+ * Checkout a remote branch (creates local tracking branch if needed)
+ *
+ * @returns Mutation for checking out a remote branch
+ */
+export function useCheckoutRemoteBranch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      worktreePath,
+      remoteBranchName,
+      stashChanges = false,
+    }: {
+      worktreePath: string;
+      remoteBranchName: string;
+      stashChanges?: boolean;
+    }) => {
+      const api = getElectronAPI();
+      if (!api.worktree) throw new Error('Worktree API not available');
+      const result = await api.worktree.checkoutRemoteBranch(
+        worktreePath,
+        remoteBranchName,
+        stashChanges
+      );
+      if (!result.success) {
+        // Attach code and changesSummary for special handling
+        const error = new Error(result.error || 'Failed to checkout remote branch') as Error & {
+          code?: string;
+          changesSummary?: string;
+        };
+        error.code = result.code;
+        error.changesSummary = result.changesSummary;
+        throw error;
+      }
+      return result.result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['worktrees'] });
+      if (result?.stashPreserved) {
+        toast.warning('Checked out remote branch with stash conflict', {
+          description: result.message,
+          duration: 8000,
+        });
+      } else {
+        toast.success(
+          result?.isNewLocalBranch ? 'Created local tracking branch' : 'Switched branch',
+          {
+            description: result?.message,
+          }
+        );
+      }
+    },
+    onError: (error: Error & { code?: string }) => {
+      // Don't show toast for UNCOMMITTED_CHANGES — the stash dialog will handle it
+      if (error.code === 'UNCOMMITTED_CHANGES') return;
+      toast.error('Failed to checkout remote branch', {
         description: error.message,
       });
     },

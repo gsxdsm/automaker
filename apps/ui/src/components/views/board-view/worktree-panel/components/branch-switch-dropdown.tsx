@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { GitBranch, GitBranchPlus, Check, Search } from 'lucide-react';
+import { GitBranch, GitBranchPlus, Check, Search, Globe } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import type { WorktreeInfo, BranchInfo } from '../types';
@@ -25,7 +25,7 @@ interface BranchSwitchDropdownProps {
   standalone?: boolean;
   onOpenChange: (open: boolean) => void;
   onFilterChange: (value: string) => void;
-  onSwitchBranch: (worktree: WorktreeInfo, branchName: string) => void;
+  onSwitchBranch: (worktree: WorktreeInfo, branchName: string, isRemote: boolean) => void;
   onCreateBranch: (worktree: WorktreeInfo) => void;
 }
 
@@ -42,6 +42,10 @@ export function BranchSwitchDropdown({
   onSwitchBranch,
   onCreateBranch,
 }: BranchSwitchDropdownProps) {
+  // Separate local and remote branches
+  const localBranches = filteredBranches.filter((b) => !b.isRemote);
+  const remoteBranches = filteredBranches.filter((b) => b.isRemote);
+
   return (
     <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -79,7 +83,7 @@ export function BranchSwitchDropdown({
           </div>
         </div>
         <DropdownMenuSeparator />
-        <div className="max-h-[250px] overflow-y-auto">
+        <div className="max-h-[300px] overflow-y-auto overflow-x-hidden">
           {isLoadingBranches ? (
             <DropdownMenuItem disabled className="text-xs">
               <Spinner size="xs" className="mr-2" />
@@ -90,21 +94,54 @@ export function BranchSwitchDropdown({
               {branchFilter ? 'No matching branches' : 'No branches found'}
             </DropdownMenuItem>
           ) : (
-            filteredBranches.map((branch) => (
-              <DropdownMenuItem
-                key={branch.name}
-                onClick={() => onSwitchBranch(worktree, branch.name)}
-                disabled={isSwitching || branch.name === worktree.branch}
-                className="text-xs font-mono"
-              >
-                {branch.name === worktree.branch ? (
-                  <Check className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
-                ) : (
-                  <span className="w-3.5 mr-2 flex-shrink-0" />
-                )}
-                <span className="truncate">{branch.name}</span>
-              </DropdownMenuItem>
-            ))
+            <>
+              {/* Local branches */}
+              {localBranches.length > 0 && (
+                <>
+                  {remoteBranches.length > 0 && (
+                    <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground/70 font-medium px-2 py-1">
+                      Local
+                    </DropdownMenuLabel>
+                  )}
+                  {localBranches.map((branch) => (
+                    <DropdownMenuItem
+                      key={branch.name}
+                      onClick={() => onSwitchBranch(worktree, branch.name, false)}
+                      disabled={isSwitching || branch.name === worktree.branch}
+                      className="text-xs font-mono"
+                    >
+                      {branch.name === worktree.branch ? (
+                        <Check className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
+                      ) : (
+                        <span className="w-3.5 mr-2 flex-shrink-0" />
+                      )}
+                      <span className="truncate">{branch.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+
+              {/* Remote branches */}
+              {remoteBranches.length > 0 && (
+                <>
+                  {localBranches.length > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground/70 font-medium px-2 py-1">
+                    Remote
+                  </DropdownMenuLabel>
+                  {remoteBranches.map((branch) => (
+                    <DropdownMenuItem
+                      key={branch.name}
+                      onClick={() => onSwitchBranch(worktree, branch.name, true)}
+                      disabled={isSwitching}
+                      className="text-xs font-mono"
+                    >
+                      <Globe className="w-3 h-3 mr-2 flex-shrink-0 text-muted-foreground" />
+                      <span className="truncate text-muted-foreground">{branch.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
         <DropdownMenuSeparator />

@@ -55,6 +55,8 @@ import { createDiscardChangesHandler } from './routes/discard-changes.js';
 import { createChangedFilesHandler } from './routes/changed-files.js';
 import { createListRemotesHandler } from './routes/list-remotes.js';
 import { createAddRemoteHandler } from './routes/add-remote.js';
+import { createStashAndSwitchHandler } from './routes/stash-and-switch.js';
+import { createCheckoutRemoteBranchHandler } from './routes/checkout-remote-branch.js';
 import type { SettingsService } from '../../services/settings-service.js';
 
 export function createWorktreeRoutes(
@@ -110,6 +112,13 @@ export function createWorktreeRoutes(
     createListBranchesHandler()
   );
   router.post('/switch-branch', requireValidWorktree, createSwitchBranchHandler());
+  router.post('/stash-and-switch', requireValidWorktree, createStashAndSwitchHandler());
+  router.post(
+    '/checkout-remote-branch',
+    validatePathParams('worktreePath'),
+    requireValidWorktree,
+    createCheckoutRemoteBranchHandler()
+  );
   router.post('/open-in-editor', validatePathParams('worktreePath'), createOpenInEditorHandler());
   router.post(
     '/open-in-terminal',
