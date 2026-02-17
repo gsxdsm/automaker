@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { GitCommit, Sparkles } from 'lucide-react';
+import { GitCommit, Sparkles, FileEdit, FilePlus, FileX, File } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getElectronAPI } from '@/lib/electron';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/app-store';
@@ -24,11 +26,49 @@ interface WorktreeInfo {
   changedFilesCount?: number;
 }
 
+interface ChangedFile {
+  path: string;
+  status: string;
+  statusLabel: string;
+}
+
 interface CommitWorktreeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   worktree: WorktreeInfo | null;
   onCommitted: () => void;
+}
+
+function getFileStatusIcon(status: string) {
+  switch (status) {
+    case 'M':
+    case 'MM':
+    case 'AM':
+      return <FileEdit className="w-3.5 h-3.5 text-yellow-500" />;
+    case 'A':
+    case '??':
+      return <FilePlus className="w-3.5 h-3.5 text-green-500" />;
+    case 'D':
+      return <FileX className="w-3.5 h-3.5 text-red-500" />;
+    default:
+      return <File className="w-3.5 h-3.5 text-muted-foreground" />;
+  }
+}
+
+function getFileStatusColor(status: string): string {
+  switch (status) {
+    case 'M':
+    case 'MM':
+    case 'AM':
+      return 'text-yellow-600 dark:text-yellow-400';
+    case 'A':
+    case '??':
+      return 'text-green-600 dark:text-green-400';
+    case 'D':
+      return 'text-red-600 dark:text-red-400';
+    default:
+      return 'text-muted-foreground';
+  }
 }
 
 export function CommitWorktreeDialog({
@@ -41,10 +81,43 @@ export function CommitWorktreeDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
+  const [uncheckedFiles, setUncheckedFiles] = useState<Set<string>>(new Set());
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const enableAiCommitMessages = useAppStore((state) => state.enableAiCommitMessages);
 
+  const selectedFiles = useMemo(
+    () => changedFiles.filter((f) => !uncheckedFiles.has(f.path)).map((f) => f.path),
+    [changedFiles, uncheckedFiles]
+  );
+
+  const allChecked = uncheckedFiles.size === 0 && changedFiles.length > 0;
+  const noneChecked = uncheckedFiles.size === changedFiles.length && changedFiles.length > 0;
+
+  const handleToggleFile = (filePath: string) => {
+    setUncheckedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(filePath)) {
+        next.delete(filePath);
+      } else {
+        next.add(filePath);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    if (allChecked) {
+      // Uncheck all
+      setUncheckedFiles(new Set(changedFiles.map((f) => f.path)));
+    } else {
+      // Check all
+      setUncheckedFiles(new Set());
+    }
+  };
+
   const handleCommit = async () => {
-    if (!worktree || !message.trim()) return;
+    if (!worktree || !message.trim() || selectedFiles.length === 0) return;
 
     setIsLoading(true);
     setError(null);
@@ -55,7 +128,10 @@ export function CommitWorktreeDialog({
         setError('Worktree API not available');
         return;
       }
-      const result = await api.worktree.commit(worktree.path, message);
+
+      // Pass selectedFiles only if not all files are selected (optimization)
+      const filesToCommit = allChecked ? undefined : selectedFiles;
+      const result = await api.worktree.commit(worktree.path, message, filesToCommit);
 
       if (result.success && result.result) {
         if (result.result.committed) {
@@ -65,6 +141,8 @@ export function CommitWorktreeDialog({
           onCommitted();
           onOpenChange(false);
           setMessage('');
+          setChangedFiles([]);
+          setUncheckedFiles(new Set());
         } else {
           toast.info('No changes to commit', {
             description: result.result.message,
@@ -82,17 +160,48 @@ export function CommitWorktreeDialog({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Prevent commit while loading or while AI is generating a message
-    if (e.key === 'Enter' && e.metaKey && !isLoading && !isGenerating && message.trim()) {
+    if (
+      e.key === 'Enter' &&
+      e.metaKey &&
+      !isLoading &&
+      !isGenerating &&
+      message.trim() &&
+      selectedFiles.length > 0
+    ) {
       handleCommit();
     }
   };
 
-  // Generate AI commit message when dialog opens (if enabled)
+  // Fetch changed files and generate AI commit message when dialog opens
   useEffect(() => {
     if (open && worktree) {
       // Reset state
       setMessage('');
       setError(null);
+      setChangedFiles([]);
+      setUncheckedFiles(new Set());
+
+      // Fetch changed files
+      setIsLoadingFiles(true);
+      const fetchFiles = async () => {
+        try {
+          const api = getElectronAPI();
+          if (!api?.worktree?.getChangedFiles) {
+            setIsLoadingFiles(false);
+            return;
+          }
+
+          const result = await api.worktree.getChangedFiles(worktree.path);
+          if (result.success && result.files) {
+            setChangedFiles(result.files);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch changed files:', err);
+        } finally {
+          setIsLoadingFiles(false);
+        }
+      };
+      fetchFiles();
 
       // Only generate AI commit message if enabled
       if (!enableAiCommitMessages) {
@@ -147,7 +256,7 @@ export function CommitWorktreeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitCommit className="w-5 h-5" />
@@ -156,16 +265,73 @@ export function CommitWorktreeDialog({
           <DialogDescription>
             Commit changes in the{' '}
             <code className="font-mono bg-muted px-1 rounded">{worktree.branch}</code> worktree.
-            {worktree.changedFilesCount && (
+            {changedFiles.length > 0 && (
               <span className="ml-1">
-                ({worktree.changedFilesCount} file
-                {worktree.changedFilesCount > 1 ? 's' : ''} changed)
+                ({selectedFiles.length} of {changedFiles.length} file
+                {changedFiles.length > 1 ? 's' : ''} selected)
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
+          {/* Changed Files List */}
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Files to commit</Label>
+              {changedFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleToggleAll}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {allChecked ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+            </div>
+
+            {isLoadingFiles ? (
+              <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                <Spinner size="sm" className="mr-2" />
+                Loading files...
+              </div>
+            ) : changedFiles.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-2">No changed files found.</div>
+            ) : (
+              <ScrollArea className="h-[200px] rounded-md border">
+                <div className="p-2 space-y-0.5">
+                  {changedFiles.map((file) => {
+                    const isChecked = !uncheckedFiles.has(file.path);
+                    return (
+                      <label
+                        key={file.path}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-muted/50 cursor-pointer group"
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => handleToggleFile(file.path)}
+                        />
+                        {getFileStatusIcon(file.status)}
+                        <span
+                          className={`text-xs font-mono truncate flex-1 ${!isChecked ? 'opacity-50' : ''}`}
+                          title={file.path}
+                        >
+                          {file.path}
+                        </span>
+                        <span
+                          className={`text-[10px] shrink-0 ${getFileStatusColor(file.status)} ${!isChecked ? 'opacity-50' : ''}`}
+                        >
+                          {file.statusLabel}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
+
+          {/* Commit Message */}
           <div className="grid gap-2">
             <Label htmlFor="commit-message" className="flex items-center gap-2">
               Commit Message
@@ -207,7 +373,10 @@ export function CommitWorktreeDialog({
           >
             Cancel
           </Button>
-          <Button onClick={handleCommit} disabled={isLoading || isGenerating || !message.trim()}>
+          <Button
+            onClick={handleCommit}
+            disabled={isLoading || isGenerating || !message.trim() || noneChecked}
+          >
             {isLoading ? (
               <>
                 <Spinner size="sm" className="mr-2" />
@@ -217,6 +386,9 @@ export function CommitWorktreeDialog({
               <>
                 <GitCommit className="w-4 h-4 mr-2" />
                 Commit
+                {selectedFiles.length > 0 && selectedFiles.length < changedFiles.length
+                  ? ` (${selectedFiles.length} files)`
+                  : ''}
               </>
             )}
           </Button>

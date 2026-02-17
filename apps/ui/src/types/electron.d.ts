@@ -849,7 +849,8 @@ export interface WorktreeAPI {
   // Commit changes in a worktree
   commit: (
     worktreePath: string,
-    message: string
+    message: string,
+    selectedFiles?: string[]
   ) => Promise<{
     success: boolean;
     result?: {
@@ -858,6 +859,17 @@ export interface WorktreeAPI {
       branch?: string;
       message?: string;
     };
+    error?: string;
+  }>;
+
+  // Get list of changed files in a worktree
+  getChangedFiles: (worktreePath: string) => Promise<{
+    success: boolean;
+    files?: Array<{
+      path: string;
+      status: string;
+      statusLabel: string;
+    }>;
     error?: string;
   }>;
 

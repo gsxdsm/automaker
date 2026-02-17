@@ -52,6 +52,7 @@ import {
   createRunInitScriptHandler,
 } from './routes/init-script.js';
 import { createDiscardChangesHandler } from './routes/discard-changes.js';
+import { createChangedFilesHandler } from './routes/changed-files.js';
 import { createListRemotesHandler } from './routes/list-remotes.js';
 import { createAddRemoteHandler } from './routes/add-remote.js';
 import type { SettingsService } from '../../services/settings-service.js';
@@ -169,6 +170,14 @@ export function createWorktreeRoutes(
     validatePathParams('worktreePath'),
     requireGitRepoOnly,
     createDiscardChangesHandler()
+  );
+
+  // Changed files route (for commit file selection)
+  router.post(
+    '/changed-files',
+    validatePathParams('worktreePath'),
+    requireGitRepoOnly,
+    createChangedFilesHandler()
   );
 
   // List remotes route

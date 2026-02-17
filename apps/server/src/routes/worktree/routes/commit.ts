@@ -15,9 +15,10 @@ const execAsync = promisify(exec);
 export function createCommitHandler() {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      const { worktreePath, message } = req.body as {
+      const { worktreePath, message, selectedFiles } = req.body as {
         worktreePath: string;
         message: string;
+        selectedFiles?: string[];
       };
 
       if (!worktreePath || !message) {
@@ -44,8 +45,24 @@ export function createCommitHandler() {
         return;
       }
 
-      // Stage all changes
-      await execAsync('git add -A', { cwd: worktreePath });
+      // Stage files - either selected files or all changes
+      if (selectedFiles && selectedFiles.length > 0) {
+        // Reset staging area first to ensure clean state
+        await execAsync('git reset HEAD', { cwd: worktreePath }).catch(() => {
+          // Ignore errors - may fail if there's no HEAD (initial commit)
+        });
+
+        // Stage only selected files
+        for (const file of selectedFiles) {
+          // Use -- to separate paths from options for safety
+          await execAsync(`git add -- "${file.replace(/"/g, '\\"')}"`, {
+            cwd: worktreePath,
+          });
+        }
+      } else {
+        // Stage all changes (original behavior)
+        await execAsync('git add -A', { cwd: worktreePath });
+      }
 
       // Create commit
       await execAsync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
