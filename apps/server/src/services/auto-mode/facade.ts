@@ -38,6 +38,7 @@ import type { SettingsService } from '../settings-service.js';
 import type { EventEmitter } from '../../lib/events.js';
 import type {
   FacadeOptions,
+  FacadeError,
   AutoModeStatus,
   ProjectAutoModeStatus,
   WorktreeCapacityInfo,
@@ -88,6 +89,45 @@ export class AutoModeServiceFacade {
     private readonly pipelineOrchestrator: PipelineOrchestrator,
     private readonly settingsService: SettingsService | null
   ) {}
+
+  /**
+   * Classify and log an error at the facade boundary.
+   * Emits an error event to the UI so failures are surfaced to the user.
+   *
+   * @param error - The caught error
+   * @param method - The facade method name where the error occurred
+   * @param featureId - Optional feature ID for context
+   * @returns The classified FacadeError for structured consumption
+   */
+  private handleFacadeError(error: unknown, method: string, featureId?: string): FacadeError {
+    const errorInfo = classifyError(error);
+
+    // Log at the facade boundary for debugging
+    logger.error(
+      `[${method}] ${featureId ? `Feature ${featureId}: ` : ''}${errorInfo.message}`,
+      error
+    );
+
+    // Emit error event to UI unless it's an abort/cancellation
+    if (!errorInfo.isAbort && !errorInfo.isCancellation) {
+      this.eventBus.emitAutoModeEvent('auto_mode_error', {
+        featureId: featureId ?? null,
+        featureName: undefined,
+        branchName: null,
+        error: errorInfo.message,
+        errorType: errorInfo.type,
+        projectPath: this.projectPath,
+      });
+    }
+
+    return {
+      method,
+      errorType: errorInfo.type,
+      message: errorInfo.message,
+      featureId,
+      projectPath: this.projectPath,
+    };
+  }
 
   /**
    * Create a new AutoModeServiceFacade instance for a specific project.
@@ -447,11 +487,16 @@ export class AutoModeServiceFacade {
    * @param maxConcurrency - Maximum concurrent features
    */
   async startAutoLoop(branchName: string | null = null, maxConcurrency?: number): Promise<number> {
-    return this.autoLoopCoordinator.startAutoLoopForProject(
-      this.projectPath,
-      branchName,
-      maxConcurrency
-    );
+    try {
+      return await this.autoLoopCoordinator.startAutoLoopForProject(
+        this.projectPath,
+        branchName,
+        maxConcurrency
+      );
+    } catch (error) {
+      this.handleFacadeError(error, 'startAutoLoop');
+      throw error;
+    }
   }
 
   /**
@@ -459,7 +504,12 @@ export class AutoModeServiceFacade {
    * @param branchName - The branch name, or null for main worktree
    */
   async stopAutoLoop(branchName: string | null = null): Promise<number> {
-    return this.autoLoopCoordinator.stopAutoLoopForProject(this.projectPath, branchName);
+    try {
+      return await this.autoLoopCoordinator.stopAutoLoopForProject(this.projectPath, branchName);
+    } catch (error) {
+      this.handleFacadeError(error, 'stopAutoLoop');
+      throw error;
+    }
   }
 
   /**
@@ -500,14 +550,19 @@ export class AutoModeServiceFacade {
       _calledInternally?: boolean;
     }
   ): Promise<void> {
-    return this.executionService.executeFeature(
-      this.projectPath,
-      featureId,
-      useWorktrees,
-      isAutoMode,
-      providedWorktreePath,
-      options
-    );
+    try {
+      return await this.executionService.executeFeature(
+        this.projectPath,
+        featureId,
+        useWorktrees,
+        isAutoMode,
+        providedWorktreePath,
+        options
+      );
+    } catch (error) {
+      this.handleFacadeError(error, 'executeFeature', featureId);
+      throw error;
+    }
   }
 
   /**
@@ -515,9 +570,14 @@ export class AutoModeServiceFacade {
    * @param featureId - ID of the feature to stop
    */
   async stopFeature(featureId: string): Promise<boolean> {
-    // Cancel any pending plan approval for this feature
-    this.cancelPlanApproval(featureId);
-    return this.executionService.stopFeature(featureId);
+    try {
+      // Cancel any pending plan approval for this feature
+      this.cancelPlanApproval(featureId);
+      return await this.executionService.stopFeature(featureId);
+    } catch (error) {
+      this.handleFacadeError(error, 'stopFeature', featureId);
+      throw error;
+    }
   }
 
   /**
@@ -552,23 +612,54 @@ export class AutoModeServiceFacade {
     imagePaths?: string[],
     useWorktrees = true
   ): Promise<void> {
-    // Stub: acquire concurrency slot then immediately throw.
-    // Heavy I/O (loadFeature, worktree resolution, context reading, prompt building)
-    // is deferred to the real AutoModeService.followUpFeature implementation.
     validateWorkingDirectory(this.projectPath);
 
-    const runningEntry = this.concurrencyManager.acquire({
-      featureId,
-      projectPath: this.projectPath,
-      isAutoMode: false,
-    });
-
     try {
-      // NOTE: Facade does not have runAgent - this method requires AutoModeService
-      // Do NOT emit start events before throwing to prevent false start events
-      throw new Error(
-        'followUpFeature not fully implemented in facade - use AutoModeService.followUpFeature instead'
-      );
+      // Load feature to build the prompt context
+      const feature = await this.featureStateManager.loadFeature(this.projectPath, featureId);
+      if (!feature) throw new Error(`Feature ${featureId} not found`);
+
+      // Read previous agent output as context
+      const featureDir = getFeatureDir(this.projectPath, featureId);
+      let previousContext = '';
+      try {
+        previousContext = (await secureFs.readFile(
+          path.join(featureDir, 'agent-output.md'),
+          'utf-8'
+        )) as string;
+      } catch {
+        // No previous context available - that's OK
+      }
+
+      // Build the feature prompt section
+      const featurePrompt = `## Feature Implementation Task\n\n**Feature ID:** ${feature.id}\n**Title:** ${feature.title || 'Untitled Feature'}\n**Description:** ${feature.description}\n`;
+
+      // Get the follow-up prompt template and build the continuation prompt
+      const prompts = await getPromptCustomization(this.settingsService, '[Facade]');
+      let continuationPrompt = prompts.autoMode.followUpPromptTemplate;
+      continuationPrompt = continuationPrompt
+        .replace(/\{\{featurePrompt\}\}/g, featurePrompt)
+        .replace(/\{\{previousContext\}\}/g, previousContext)
+        .replace(/\{\{followUpInstructions\}\}/g, prompt);
+
+      // Store image paths on the feature so executeFeature can pick them up
+      if (imagePaths && imagePaths.length > 0) {
+        feature.imagePaths = imagePaths.map((p) => ({
+          path: p,
+          filename: p.split('/').pop() || p,
+          mimeType: 'image/*',
+        }));
+        await this.featureStateManager.updateFeatureStatus(
+          this.projectPath,
+          featureId,
+          feature.status || 'in_progress'
+        );
+      }
+
+      // Delegate to executeFeature with the built continuation prompt
+      await this.executeFeature(featureId, useWorktrees, false, undefined, {
+        continuationPrompt,
+      });
     } catch (error) {
       const errorInfo = classifyError(error);
       if (!errorInfo.isAbort) {
@@ -582,8 +673,6 @@ export class AutoModeServiceFacade {
         });
       }
       throw error;
-    } finally {
-      this.concurrencyManager.release(featureId);
     }
   }
 

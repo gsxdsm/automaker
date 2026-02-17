@@ -153,6 +153,7 @@ export const AgentInfoPanel = memo(function AgentInfoPanel({
 
   // Derive effective todos from planSpec.tasks when available, fallback to agentInfo.todos
   // Uses freshPlanSpec (from API) for accurate progress, with taskStatusMap for real-time updates
+  const isFeatureFinished = feature.status === 'waiting_approval' || feature.status === 'verified';
   const effectiveTodos = useMemo(() => {
     // Use freshPlanSpec if available (fetched from API), fallback to store's feature.planSpec
     const planSpec = freshPlanSpec?.tasks?.length ? freshPlanSpec : feature.planSpec;
@@ -163,6 +164,16 @@ export const AgentInfoPanel = memo(function AgentInfoPanel({
       const currentTaskId = planSpec.currentTaskId;
 
       return planSpec.tasks.map((task: ParsedTask, index: number) => {
+        // If the feature is done (waiting_approval/verified), all tasks are completed
+        // This is a defensive UI-side check: the server should have already finalized
+        // task statuses, but stale data from before the fix could still show spinners
+        if (isFeatureFinished) {
+          return {
+            content: task.description,
+            status: 'completed' as const,
+          };
+        }
+
         // Use real-time status from WebSocket events if available
         const realtimeStatus = taskStatusMap.get(task.id);
 
@@ -199,6 +210,7 @@ export const AgentInfoPanel = memo(function AgentInfoPanel({
     feature.planSpec?.currentTaskId,
     agentInfo?.todos,
     taskStatusMap,
+    isFeatureFinished,
   ]);
 
   // Listen to WebSocket events for real-time task status updates

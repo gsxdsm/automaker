@@ -13,6 +13,7 @@ import { GlobalAutoModeService } from './global-service.js';
 import { AutoModeServiceFacade } from './facade.js';
 import type { SettingsService } from '../settings-service.js';
 import type { FeatureLoader } from '../feature-loader.js';
+import type { ClaudeUsageService } from '../claude-usage-service.js';
 import type { FacadeOptions, AutoModeStatus, RunningAgentInfo } from './types.js';
 
 /**
@@ -27,7 +28,8 @@ export class AutoModeServiceCompat {
   constructor(
     events: EventEmitter,
     settingsService: SettingsService | null,
-    featureLoader: FeatureLoader
+    featureLoader: FeatureLoader,
+    claudeUsageService?: ClaudeUsageService | null
   ) {
     this.globalService = new GlobalAutoModeService(events, settingsService, featureLoader);
     const sharedServices = this.globalService.getSharedServices();
@@ -37,6 +39,7 @@ export class AutoModeServiceCompat {
       settingsService,
       featureLoader,
       sharedServices,
+      claudeUsageService: claudeUsageService ?? null,
     };
   }
 

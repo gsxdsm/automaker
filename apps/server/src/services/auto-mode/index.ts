@@ -58,6 +58,7 @@ export type {
   WorktreeCapacityInfo,
   RunningAgentInfo,
   OrphanedFeatureInfo,
+  FacadeError,
   GlobalAutoModeOperations,
 } from './types.js';
 

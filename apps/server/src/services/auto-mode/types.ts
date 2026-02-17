@@ -15,6 +15,7 @@ import type { ConcurrencyManager } from '../concurrency-manager.js';
 import type { AutoLoopCoordinator } from '../auto-loop-coordinator.js';
 import type { WorktreeResolver } from '../worktree-resolver.js';
 import type { TypedEventBus } from '../typed-event-bus.js';
+import type { ClaudeUsageService } from '../claude-usage-service.js';
 
 // Re-export types from extracted services for route consumption
 export type { AutoModeConfig, ProjectAutoLoopState } from '../auto-loop-coordinator.js';
@@ -55,6 +56,8 @@ export interface FacadeOptions {
   featureLoader?: FeatureLoader;
   /** Shared services for state sharing across facades (optional) */
   sharedServices?: SharedServices;
+  /** ClaudeUsageService for checking usage limits before picking up features (optional) */
+  claudeUsageService?: ClaudeUsageService | null;
 }
 
 /**
@@ -108,6 +111,23 @@ export interface RunningAgentInfo {
 export interface OrphanedFeatureInfo {
   feature: Feature;
   missingBranch: string;
+}
+
+/**
+ * Structured error object returned/emitted by facade methods.
+ * Provides consistent error information for callers and UI consumers.
+ */
+export interface FacadeError {
+  /** The facade method where the error originated */
+  method: string;
+  /** Classified error type from the error handler */
+  errorType: import('@automaker/types').ErrorType;
+  /** Human-readable error message */
+  message: string;
+  /** Feature ID if the error is associated with a specific feature */
+  featureId?: string;
+  /** Project path where the error occurred */
+  projectPath: string;
 }
 
 /**

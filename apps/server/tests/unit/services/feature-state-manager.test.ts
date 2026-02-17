@@ -151,6 +151,100 @@ describe('FeatureStateManager', () => {
       expect(savedFeature.justFinishedAt).toBeUndefined();
     });
 
+    it('should finalize in_progress tasks but keep pending tasks when moving to waiting_approval', async () => {
+      const featureWithTasks: Feature = {
+        ...mockFeature,
+        status: 'in_progress',
+        planSpec: {
+          status: 'approved',
+          version: 1,
+          reviewedByUser: true,
+          currentTaskId: 'task-2',
+          tasksCompleted: 1,
+          tasks: [
+            { id: 'task-1', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'task-2', title: 'Task 2', status: 'in_progress', description: 'Second task' },
+            { id: 'task-3', title: 'Task 3', status: 'pending', description: 'Third task' },
+          ],
+        },
+      };
+
+      (readJsonWithRecovery as Mock).mockResolvedValue({
+        data: featureWithTasks,
+        recovered: false,
+        source: 'main',
+      });
+
+      await manager.updateFeatureStatus('/project', 'feature-123', 'waiting_approval');
+
+      const savedFeature = (atomicWriteJson as Mock).mock.calls[0][1] as Feature;
+      // Already completed tasks stay completed
+      expect(savedFeature.planSpec?.tasks?.[0].status).toBe('completed');
+      // in_progress tasks should be finalized to completed
+      expect(savedFeature.planSpec?.tasks?.[1].status).toBe('completed');
+      // pending tasks should remain pending (never started)
+      expect(savedFeature.planSpec?.tasks?.[2].status).toBe('pending');
+      // currentTaskId should be cleared
+      expect(savedFeature.planSpec?.currentTaskId).toBeUndefined();
+      // tasksCompleted should equal actual completed tasks count
+      expect(savedFeature.planSpec?.tasksCompleted).toBe(2);
+    });
+
+    it('should finalize tasks when moving to verified status', async () => {
+      const featureWithTasks: Feature = {
+        ...mockFeature,
+        status: 'in_progress',
+        planSpec: {
+          status: 'approved',
+          version: 1,
+          reviewedByUser: true,
+          currentTaskId: 'task-2',
+          tasksCompleted: 1,
+          tasks: [
+            { id: 'task-1', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'task-2', title: 'Task 2', status: 'in_progress', description: 'Second task' },
+            { id: 'task-3', title: 'Task 3', status: 'pending', description: 'Third task' },
+          ],
+        },
+      };
+
+      (readJsonWithRecovery as Mock).mockResolvedValue({
+        data: featureWithTasks,
+        recovered: false,
+        source: 'main',
+      });
+
+      await manager.updateFeatureStatus('/project', 'feature-123', 'verified');
+
+      const savedFeature = (atomicWriteJson as Mock).mock.calls[0][1] as Feature;
+      // Already completed tasks stay completed
+      expect(savedFeature.planSpec?.tasks?.[0].status).toBe('completed');
+      // in_progress tasks should be finalized to completed
+      expect(savedFeature.planSpec?.tasks?.[1].status).toBe('completed');
+      // pending tasks should remain pending (never started)
+      expect(savedFeature.planSpec?.tasks?.[2].status).toBe('pending');
+      // currentTaskId should be cleared
+      expect(savedFeature.planSpec?.currentTaskId).toBeUndefined();
+      // tasksCompleted should equal actual completed tasks count
+      expect(savedFeature.planSpec?.tasksCompleted).toBe(2);
+      // justFinishedAt should be cleared for verified
+      expect(savedFeature.justFinishedAt).toBeUndefined();
+    });
+
+    it('should handle waiting_approval without planSpec tasks gracefully', async () => {
+      (readJsonWithRecovery as Mock).mockResolvedValue({
+        data: { ...mockFeature },
+        recovered: false,
+        source: 'main',
+      });
+
+      await manager.updateFeatureStatus('/project', 'feature-123', 'waiting_approval');
+
+      const savedFeature = (atomicWriteJson as Mock).mock.calls[0][1] as Feature;
+      expect(savedFeature.status).toBe('waiting_approval');
+      expect(savedFeature.justFinishedAt).toBeDefined();
+    });
+
     it('should create notification for waiting_approval status', async () => {
       const mockNotificationService = { createNotification: vi.fn() };
       (getNotificationService as Mock).mockReturnValue(mockNotificationService);

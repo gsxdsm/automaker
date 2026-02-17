@@ -107,6 +107,47 @@ export class FeatureStateManager {
       // Badge will show for 2 minutes after this timestamp
       if (status === 'waiting_approval') {
         feature.justFinishedAt = new Date().toISOString();
+
+        // Finalize task statuses when feature is done:
+        // - Mark any in_progress tasks as completed (agent finished but didn't explicitly complete them)
+        // - Do NOT mark pending tasks as completed (they were never started)
+        // - Clear currentTaskId since no task is actively running
+        // This prevents cards in "waiting for review" from appearing to still have running tasks
+        if (feature.planSpec?.tasks) {
+          let tasksFinalized = 0;
+          for (const task of feature.planSpec.tasks) {
+            if (task.status === 'in_progress') {
+              task.status = 'completed';
+              tasksFinalized++;
+            }
+          }
+          if (tasksFinalized > 0) {
+            logger.info(
+              `[updateFeatureStatus] Finalized ${tasksFinalized} in_progress tasks for feature ${featureId} moving to waiting_approval`
+            );
+          }
+          // Update tasksCompleted count to reflect actual completed tasks
+          feature.planSpec.tasksCompleted = feature.planSpec.tasks.filter(
+            (t) => t.status === 'completed'
+          ).length;
+          feature.planSpec.currentTaskId = undefined;
+        }
+      } else if (status === 'verified') {
+        // Also finalize in_progress tasks when moving directly to verified (skipTests=false)
+        // Do NOT mark pending tasks as completed - they were never started
+        if (feature.planSpec?.tasks) {
+          for (const task of feature.planSpec.tasks) {
+            if (task.status === 'in_progress') {
+              task.status = 'completed';
+            }
+          }
+          feature.planSpec.tasksCompleted = feature.planSpec.tasks.filter(
+            (t) => t.status === 'completed'
+          ).length;
+          feature.planSpec.currentTaskId = undefined;
+        }
+        // Clear the timestamp when moving to other statuses
+        feature.justFinishedAt = undefined;
       } else {
         // Clear the timestamp when moving to other statuses
         feature.justFinishedAt = undefined;
