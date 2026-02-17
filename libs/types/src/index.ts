@@ -185,6 +185,8 @@ export type {
   // Claude API profile types (deprecated)
   ClaudeApiProfile,
   ClaudeApiProfileTemplate,
+  // Terminal prompt theme type
+  TerminalPromptTheme,
 } from './settings.js';
 export {
   DEFAULT_KEYBOARD_SHORTCUTS,

@@ -22,6 +22,7 @@ function formatThinkingLevel(level: ThinkingLevel | undefined): string {
     medium: 'Med',
     high: 'High',
     ultrathink: 'Ultra',
+    adaptive: 'Adaptive',
   };
   return labels[level];
 }

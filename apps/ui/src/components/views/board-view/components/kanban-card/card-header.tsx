@@ -167,10 +167,13 @@ export const CardHeaderSection = memo(function CardHeaderSection({
         </div>
       )}
 
-      {/* Backlog and Scheduled header */}
+      {/* Backlog header (also handles 'scheduled', 'interrupted' and 'ready' statuses that display in backlog column) */}
       {!isCurrentAutoTask &&
         !isSelectionMode &&
-        (feature.status === 'backlog' || feature.status === 'scheduled') && (
+        (feature.status === 'backlog' ||
+          feature.status === 'scheduled' ||
+          feature.status === 'interrupted' ||
+          feature.status === 'ready') && (
           <div className="absolute top-2 right-2 flex items-center gap-1">
             <Button
               variant="ghost"
