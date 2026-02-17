@@ -21,6 +21,7 @@ import { createFollowUpFeatureHandler } from './routes/follow-up-feature.js';
 import { createCommitFeatureHandler } from './routes/commit-feature.js';
 import { createApprovePlanHandler } from './routes/approve-plan.js';
 import { createResumeInterruptedHandler } from './routes/resume-interrupted.js';
+import { createReconcileHandler } from './routes/reconcile.js';
 
 /**
  * Create auto-mode routes.
@@ -80,6 +81,11 @@ export function createAutoModeRoutes(autoModeService: AutoModeServiceCompat): Ro
     '/resume-interrupted',
     validatePathParams('projectPath'),
     createResumeInterruptedHandler(autoModeService)
+  );
+  router.post(
+    '/reconcile',
+    validatePathParams('projectPath'),
+    createReconcileHandler(autoModeService)
   );
 
   return router;

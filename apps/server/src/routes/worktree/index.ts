@@ -104,7 +104,12 @@ export function createWorktreeRoutes(
     requireValidWorktree,
     createPullHandler()
   );
-  router.post('/checkout-branch', requireValidWorktree, createCheckoutBranchHandler());
+  router.post(
+    '/checkout-branch',
+    validatePathParams('worktreePath'),
+    requireValidWorktree,
+    createCheckoutBranchHandler()
+  );
   router.post(
     '/list-branches',
     validatePathParams('worktreePath'),

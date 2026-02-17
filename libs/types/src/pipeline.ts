@@ -21,6 +21,7 @@ export type PipelineStatus = `pipeline_${string}`;
 
 export type FeatureStatusWithPipeline =
   | 'backlog'
+  | 'ready'
   | 'in_progress'
   | 'interrupted'
   | 'waiting_approval'

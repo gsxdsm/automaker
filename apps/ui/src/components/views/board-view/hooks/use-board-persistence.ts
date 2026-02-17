@@ -85,15 +85,48 @@ export function useBoardPersistence({ currentProject }: UseBoardPersistenceProps
         throw new Error('Features API not available');
       }
 
-      const result = await api.features.create(currentProject.path, feature as ApiFeature);
-      if (result.success && result.feature) {
-        updateFeature(result.feature.id, result.feature as Partial<Feature>);
-        // Invalidate React Query cache to sync UI
+      // Capture previous cache snapshot for synchronous rollback on error
+      const previousFeatures = queryClient.getQueryData<Feature[]>(
+        queryKeys.features.all(currentProject.path)
+      );
+
+      // Optimistically add to React Query cache for immediate board refresh
+      queryClient.setQueryData<Feature[]>(
+        queryKeys.features.all(currentProject.path),
+        (existing) => (existing ? [...existing, feature] : [feature])
+      );
+
+      try {
+        const result = await api.features.create(currentProject.path, feature as ApiFeature);
+        if (result.success && result.feature) {
+          updateFeature(result.feature.id, result.feature as Partial<Feature>);
+          // Update cache with server-confirmed feature before invalidating
+          queryClient.setQueryData<Feature[]>(
+            queryKeys.features.all(currentProject.path),
+            (features) => {
+              if (!features) return features;
+              return features.map((f) =>
+                f.id === result.feature!.id ? { ...f, ...(result.feature as Feature) } : f
+              );
+            }
+          );
+        } else if (!result.success) {
+          throw new Error(result.error || 'Failed to create feature on server');
+        }
+        // Always invalidate to sync with server state
         queryClient.invalidateQueries({
           queryKey: queryKeys.features.all(currentProject.path),
         });
-      } else if (!result.success) {
-        throw new Error(result.error || 'Failed to create feature on server');
+      } catch (error) {
+        logger.error('Failed to persist feature creation:', error);
+        // Rollback optimistic update synchronously on error
+        if (previousFeatures) {
+          queryClient.setQueryData(queryKeys.features.all(currentProject.path), previousFeatures);
+        }
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.features.all(currentProject.path),
+        });
+        throw error;
       }
     },
     [currentProject, updateFeature, queryClient]
@@ -104,20 +137,42 @@ export function useBoardPersistence({ currentProject }: UseBoardPersistenceProps
     async (featureId: string) => {
       if (!currentProject) return;
 
+      // Optimistically remove from React Query cache for immediate board refresh
+      const previousFeatures = queryClient.getQueryData<Feature[]>(
+        queryKeys.features.all(currentProject.path)
+      );
+      queryClient.setQueryData<Feature[]>(
+        queryKeys.features.all(currentProject.path),
+        (existing) => (existing ? existing.filter((f) => f.id !== featureId) : existing)
+      );
+
       try {
         const api = getElectronAPI();
         if (!api.features) {
-          logger.error('Features API not available');
-          return;
+          // Rollback optimistic deletion since we can't persist
+          if (previousFeatures) {
+            queryClient.setQueryData(queryKeys.features.all(currentProject.path), previousFeatures);
+          }
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.features.all(currentProject.path),
+          });
+          throw new Error('Features API not available');
         }
 
         await api.features.delete(currentProject.path, featureId);
-        // Invalidate React Query cache to sync UI
+        // Invalidate to sync with server state
         queryClient.invalidateQueries({
           queryKey: queryKeys.features.all(currentProject.path),
         });
       } catch (error) {
         logger.error('Failed to persist feature deletion:', error);
+        // Rollback optimistic update on error
+        if (previousFeatures) {
+          queryClient.setQueryData(queryKeys.features.all(currentProject.path), previousFeatures);
+        }
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.features.all(currentProject.path),
+        });
       }
     },
     [currentProject, queryClient]

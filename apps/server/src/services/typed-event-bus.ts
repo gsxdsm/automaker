@@ -40,9 +40,13 @@ export type AutoModeEventType =
   | 'plan_rejected'
   | 'plan_revision_requested'
   | 'plan_revision_warning'
+  | 'plan_spec_updated'
   | 'pipeline_step_started'
   | 'pipeline_step_complete'
-  | string; // Allow other strings for extensibility
+  | 'pipeline_test_failed'
+  | 'pipeline_merge_conflict'
+  | 'feature_status_changed'
+  | 'features_reconciled';
 
 /**
  * TypedEventBus wraps an EventEmitter to provide type-safe event emission

@@ -36,8 +36,24 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 # Port configuration
-DEFAULT_WEB_PORT=5007
-DEFAULT_SERVER_PORT=5008
+# Defaults can be overridden via AUTOMAKER_WEB_PORT and AUTOMAKER_SERVER_PORT env vars
+
+# Validate env-provided ports early (before colors are available)
+if [ -n "$AUTOMAKER_WEB_PORT" ]; then
+    if ! [[ "$AUTOMAKER_WEB_PORT" =~ ^[0-9]+$ ]] || [ "$AUTOMAKER_WEB_PORT" -lt 1 ] || [ "$AUTOMAKER_WEB_PORT" -gt 65535 ]; then
+        echo "Error: AUTOMAKER_WEB_PORT must be a number between 1-65535, got '$AUTOMAKER_WEB_PORT'"
+        exit 1
+    fi
+fi
+if [ -n "$AUTOMAKER_SERVER_PORT" ]; then
+    if ! [[ "$AUTOMAKER_SERVER_PORT" =~ ^[0-9]+$ ]] || [ "$AUTOMAKER_SERVER_PORT" -lt 1 ] || [ "$AUTOMAKER_SERVER_PORT" -gt 65535 ]; then
+        echo "Error: AUTOMAKER_SERVER_PORT must be a number between 1-65535, got '$AUTOMAKER_SERVER_PORT'"
+        exit 1
+    fi
+fi
+
+DEFAULT_WEB_PORT=${AUTOMAKER_WEB_PORT:-5007}
+DEFAULT_SERVER_PORT=${AUTOMAKER_SERVER_PORT:-5008}
 PORT_SEARCH_MAX_ATTEMPTS=100
 WEB_PORT=$DEFAULT_WEB_PORT
 SERVER_PORT=$DEFAULT_SERVER_PORT
@@ -142,6 +158,9 @@ EXAMPLES:
   start-automaker.sh docker       # Launch Docker dev container
   start-automaker.sh --version    # Show version
 
+  AUTOMAKER_WEB_PORT=4000 AUTOMAKER_SERVER_PORT=4001 start-automaker.sh web
+                                  # Launch web mode on custom ports
+
 KEYBOARD SHORTCUTS (in menu):
   Up/Down arrows   Navigate between options
   Enter            Select highlighted option
@@ -151,6 +170,10 @@ KEYBOARD SHORTCUTS (in menu):
 HISTORY:
   Your last selected mode is remembered in: ~/.automaker_launcher_history
   Use --no-history to disable this feature
+
+ENVIRONMENT VARIABLES:
+  AUTOMAKER_WEB_PORT     Override default web/UI port (default: 5007)
+  AUTOMAKER_SERVER_PORT  Override default API server port (default: 5008)
 
 WATCHDOG (.env configuration):
   WATCHDOG_ENABLED=true          Enable watchdog monitoring (default: false)

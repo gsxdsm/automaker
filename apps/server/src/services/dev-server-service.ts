@@ -125,7 +125,7 @@ class DevServerService {
       /(?:Local|Network):\s+(https?:\/\/[^\s]+)/i, // Vite format
       /(?:ready|started server).*?(?:url:\s*)?(https?:\/\/[^\s,]+)/i, // Next.js format
       /(https?:\/\/(?:localhost|127\.0\.0\.1|\[::\]):\d+)/i, // Generic localhost URL
-      /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/i, // Any HTTP(S) URL
+      /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/i, // Any HTTP(S) URL
     ];
 
     for (const pattern of urlPatterns) {

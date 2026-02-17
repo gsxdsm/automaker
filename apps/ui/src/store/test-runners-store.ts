@@ -155,7 +155,6 @@ export const useTestRunnersStore = create<TestRunnersState & TestRunnersActions>
       const finishedAt = new Date().toISOString();
 
       // Remove from active sessions since it's no longer running
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [session.worktreePath]: _, ...remainingActive } = state.activeSessionByWorktree;
 
       return {
@@ -202,7 +201,6 @@ export const useTestRunnersStore = create<TestRunnersState & TestRunnersActions>
       const session = state.sessions[sessionId];
       if (!session) return state;
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [sessionId]: _, ...remainingSessions } = state.sessions;
 
       // Remove from active if this was the active session
@@ -231,7 +229,6 @@ export const useTestRunnersStore = create<TestRunnersState & TestRunnersActions>
       });
 
       // Remove from active
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [worktreePath]: _, ...remainingActive } = state.activeSessionByWorktree;
 
       return {

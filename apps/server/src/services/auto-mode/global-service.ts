@@ -205,4 +205,21 @@ export class GlobalAutoModeService {
       );
     }
   }
+
+  /**
+   * Reconcile all feature states for a project on server startup.
+   *
+   * Resets features stuck in transient states (in_progress, interrupted, pipeline_*)
+   * back to a resting state and emits events so the UI reflects corrected states.
+   *
+   * This should be called during server initialization to handle:
+   * - Clean shutdown: features already marked as interrupted
+   * - Forced kill / crash: features left in in_progress or pipeline_* states
+   *
+   * @param projectPath - The project path to reconcile
+   * @returns The number of features that were reconciled
+   */
+  async reconcileFeatureStates(projectPath: string): Promise<number> {
+    return this.featureStateManager.reconcileAllFeatureStates(projectPath);
+  }
 }

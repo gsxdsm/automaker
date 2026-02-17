@@ -382,23 +382,60 @@ eventHookService.initialize(events, settingsService, eventHistoryService, featur
     logger.warn('Failed to check for legacy settings migration:', err);
   }
 
-  // Apply logging settings from saved settings
+  // Fetch global settings once and reuse for logging config and feature reconciliation
+  let globalSettings: Awaited<ReturnType<typeof settingsService.getGlobalSettings>> | null = null;
   try {
-    const settings = await settingsService.getGlobalSettings();
-    if (settings.serverLogLevel && LOG_LEVEL_MAP[settings.serverLogLevel] !== undefined) {
-      setLogLevel(LOG_LEVEL_MAP[settings.serverLogLevel]);
-      logger.info(`Server log level set to: ${settings.serverLogLevel}`);
-    }
-    // Apply request logging setting (default true if not set)
-    const enableRequestLog = settings.enableRequestLogging ?? true;
-    setRequestLoggingEnabled(enableRequestLog);
-    logger.info(`HTTP request logging: ${enableRequestLog ? 'enabled' : 'disabled'}`);
+    globalSettings = await settingsService.getGlobalSettings();
   } catch (err) {
-    logger.warn('Failed to load logging settings, using defaults');
+    logger.warn('Failed to load global settings, using defaults');
+  }
+
+  // Apply logging settings from saved settings
+  if (globalSettings) {
+    try {
+      if (
+        globalSettings.serverLogLevel &&
+        LOG_LEVEL_MAP[globalSettings.serverLogLevel] !== undefined
+      ) {
+        setLogLevel(LOG_LEVEL_MAP[globalSettings.serverLogLevel]);
+        logger.info(`Server log level set to: ${globalSettings.serverLogLevel}`);
+      }
+      // Apply request logging setting (default true if not set)
+      const enableRequestLog = globalSettings.enableRequestLogging ?? true;
+      setRequestLoggingEnabled(enableRequestLog);
+      logger.info(`HTTP request logging: ${enableRequestLog ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      logger.warn('Failed to apply logging settings, using defaults');
+    }
   }
 
   await agentService.initialize();
   logger.info('Agent service initialized');
+
+  // Reconcile feature states on startup
+  // After any type of restart (clean, forced, crash), features may be stuck in
+  // transient states (in_progress, interrupted, pipeline_*) that don't match reality.
+  // Reconcile them back to resting states before the UI is served.
+  if (globalSettings) {
+    try {
+      if (globalSettings.projects && globalSettings.projects.length > 0) {
+        let totalReconciled = 0;
+        for (const project of globalSettings.projects) {
+          const count = await autoModeService.reconcileFeatureStates(project.path);
+          totalReconciled += count;
+        }
+        if (totalReconciled > 0) {
+          logger.info(
+            `[STARTUP] Reconciled ${totalReconciled} feature(s) across ${globalSettings.projects.length} project(s)`
+          );
+        } else {
+          logger.info('[STARTUP] Feature state reconciliation complete - no stale states found');
+        }
+      }
+    } catch (err) {
+      logger.warn('[STARTUP] Failed to reconcile feature states:', err);
+    }
+  }
 
   // Bootstrap Codex model cache in background (don't block server startup)
   void codexModelCacheService.getModels().catch((err) => {

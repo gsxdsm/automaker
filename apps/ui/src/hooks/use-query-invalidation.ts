@@ -38,6 +38,8 @@ const FEATURE_LIST_INVALIDATION_EVENTS: AutoModeEvent['type'][] = [
   'plan_rejected',
   'pipeline_step_started',
   'pipeline_step_complete',
+  'feature_status_changed',
+  'features_reconciled',
 ];
 
 /**

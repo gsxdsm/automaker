@@ -88,6 +88,10 @@ export class AutoModeServiceCompat {
     return this.globalService.markAllRunningFeaturesInterrupted(reason);
   }
 
+  async reconcileFeatureStates(projectPath: string): Promise<number> {
+    return this.globalService.reconcileFeatureStates(projectPath);
+  }
+
   // ===========================================================================
   // PER-PROJECT OPERATIONS (delegated to facades)
   // ===========================================================================

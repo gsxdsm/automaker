@@ -14,10 +14,6 @@
 
 **Stop typing code. Start directing AI agents.**
 
-> **[!WARNING]**
->
-> **This project is no longer actively maintained.** The codebase is provided as-is. No bug fixes, security updates, or new features are being developed.
-
 <details open>
 <summary><h2>Table of Contents</h2></summary>
 

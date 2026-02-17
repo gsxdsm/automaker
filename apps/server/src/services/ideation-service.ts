@@ -888,7 +888,7 @@ ${contextSection}${existingWorkSection}`;
 
     for (const line of lines) {
       // Check for numbered items or markdown headers
-      const titleMatch = line.match(/^(?:\d+[\.\)]\s*\*{0,2}|#{1,3}\s+)(.+)/);
+      const titleMatch = line.match(/^(?:\d+[.)]\s*\*{0,2}|#{1,3}\s+)(.+)/);
 
       if (titleMatch) {
         // Save previous suggestion

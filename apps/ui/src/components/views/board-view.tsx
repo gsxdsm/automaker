@@ -1545,7 +1545,8 @@ export function BoardView() {
                 setSpawnParentFeature(feature);
                 setShowAddDialog(true);
               }}
-              onDuplicate={handleDuplicateFeature}
+              onDuplicate={(feature) => handleDuplicateFeature(feature, false)}
+              onDuplicateAsChild={(feature) => handleDuplicateFeature(feature, true)}
               featuresWithContext={featuresWithContext}
               runningAutoTasks={runningAutoTasksAllWorktrees}
               onArchiveAllVerified={() => setShowArchiveAllVerifiedDialog(true)}

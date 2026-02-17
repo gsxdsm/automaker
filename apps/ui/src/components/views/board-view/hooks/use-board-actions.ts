@@ -520,7 +520,7 @@ export function useBoardActions({
       }
 
       removeFeature(featureId);
-      persistFeatureDelete(featureId);
+      await persistFeatureDelete(featureId);
     },
     [features, runningAutoTasks, autoMode, removeFeature, persistFeatureDelete]
   );
@@ -1106,8 +1106,20 @@ export function useBoardActions({
 
   const handleDuplicateFeature = useCallback(
     async (feature: Feature, asChild: boolean = false) => {
-      // Copy all feature data, only override id/status (handled by create) and dependencies if as child
-      const { id: _id, status: _status, ...featureData } = feature;
+      // Copy all feature data, stripping id, status (handled by create), and runtime/state fields
+      const {
+        id: _id,
+        status: _status,
+        startedAt: _startedAt,
+        error: _error,
+        summary: _summary,
+        spec: _spec,
+        passes: _passes,
+        planSpec: _planSpec,
+        descriptionHistory: _descriptionHistory,
+        titleGenerating: _titleGenerating,
+        ...featureData
+      } = feature;
       const duplicatedFeatureData = {
         ...featureData,
         // If duplicating as child, set source as dependency; otherwise keep existing
