@@ -115,15 +115,23 @@ export class FeatureStateManager {
         // This prevents cards in "waiting for review" from appearing to still have running tasks
         if (feature.planSpec?.tasks) {
           let tasksFinalized = 0;
+          let tasksPending = 0;
           for (const task of feature.planSpec.tasks) {
             if (task.status === 'in_progress') {
               task.status = 'completed';
               tasksFinalized++;
+            } else if (task.status === 'pending') {
+              tasksPending++;
             }
           }
           if (tasksFinalized > 0) {
             logger.info(
               `[updateFeatureStatus] Finalized ${tasksFinalized} in_progress tasks for feature ${featureId} moving to waiting_approval`
+            );
+          }
+          if (tasksPending > 0) {
+            logger.warn(
+              `[updateFeatureStatus] Feature ${featureId} moving to waiting_approval with ${tasksPending} pending (never started) tasks out of ${feature.planSpec.tasks.length} total`
             );
           }
           // Update tasksCompleted count to reflect actual completed tasks
@@ -136,10 +144,25 @@ export class FeatureStateManager {
         // Also finalize in_progress tasks when moving directly to verified (skipTests=false)
         // Do NOT mark pending tasks as completed - they were never started
         if (feature.planSpec?.tasks) {
+          let tasksFinalized = 0;
+          let tasksPending = 0;
           for (const task of feature.planSpec.tasks) {
             if (task.status === 'in_progress') {
               task.status = 'completed';
+              tasksFinalized++;
+            } else if (task.status === 'pending') {
+              tasksPending++;
             }
+          }
+          if (tasksFinalized > 0) {
+            logger.info(
+              `[updateFeatureStatus] Finalized ${tasksFinalized} in_progress tasks for feature ${featureId} moving to verified`
+            );
+          }
+          if (tasksPending > 0) {
+            logger.warn(
+              `[updateFeatureStatus] Feature ${featureId} moving to verified with ${tasksPending} pending (never started) tasks out of ${feature.planSpec.tasks.length} total`
+            );
           }
           feature.planSpec.tasksCompleted = feature.planSpec.tasks.filter(
             (t) => t.status === 'completed'

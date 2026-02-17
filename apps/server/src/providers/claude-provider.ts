@@ -204,7 +204,7 @@ export class ClaudeProvider extends BaseProvider {
       model,
       cwd,
       systemPrompt,
-      maxTurns = 20,
+      maxTurns = 100,
       allowedTools,
       abortController,
       conversationHistory,

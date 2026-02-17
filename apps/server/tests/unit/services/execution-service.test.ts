@@ -677,6 +677,302 @@ describe('execution-service.ts', () => {
     });
   });
 
+  describe('executeFeature - incomplete task retry', () => {
+    const createServiceWithMocks = () => {
+      return new ExecutionService(
+        mockEventBus,
+        mockConcurrencyManager,
+        mockWorktreeResolver,
+        mockSettingsService,
+        mockRunAgentFn,
+        mockExecutePipelineFn,
+        mockUpdateFeatureStatusFn,
+        mockLoadFeatureFn,
+        mockGetPlanningPromptPrefixFn,
+        mockSaveFeatureSummaryFn,
+        mockRecordLearningsFn,
+        mockContextExistsFn,
+        mockResumeFeatureFn,
+        mockTrackFailureFn,
+        mockSignalPauseFn,
+        mockRecordSuccessFn,
+        mockSaveExecutionStateFn,
+        mockLoadContextFilesFn
+      );
+    };
+
+    it('does not re-run agent when feature has no tasks', async () => {
+      // Feature with no planSpec/tasks - should complete normally with 1 agent call
+      mockLoadFeatureFn = vi.fn().mockResolvedValue(testFeature);
+      const svc = createServiceWithMocks();
+
+      await svc.executeFeature('/test/project', 'feature-1');
+
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-run agent when all tasks are completed', async () => {
+      const featureWithCompletedTasks: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'completed', description: 'Second task' },
+          ],
+          tasksCompleted: 2,
+        },
+      };
+      mockLoadFeatureFn = vi.fn().mockResolvedValue(featureWithCompletedTasks);
+      const svc = createServiceWithMocks();
+
+      await svc.executeFeature('/test/project', 'feature-1');
+
+      // Only the initial agent call + the approved-plan recursive call
+      // The approved plan triggers recursive executeFeature, so runAgentFn is called once in the inner call
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-runs agent when there are pending tasks after initial execution', async () => {
+      const featureWithPendingTasks: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'pending', description: 'Second task' },
+            { id: 'T003', title: 'Task 3', status: 'pending', description: 'Third task' },
+          ],
+          tasksCompleted: 1,
+        },
+      };
+
+      // After first agent run, loadFeature returns feature with pending tasks
+      // After second agent run, loadFeature returns feature with all tasks completed
+      const featureAllDone: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'completed', description: 'Second task' },
+            { id: 'T003', title: 'Task 3', status: 'completed', description: 'Third task' },
+          ],
+          tasksCompleted: 3,
+        },
+      };
+
+      let loadCallCount = 0;
+      mockLoadFeatureFn = vi.fn().mockImplementation(() => {
+        loadCallCount++;
+        // First call: initial feature load at the top of executeFeature
+        // Second call: after first agent run (check for incomplete tasks) - has pending tasks
+        // Third call: after second agent run (check for incomplete tasks) - all done
+        if (loadCallCount <= 2) return featureWithPendingTasks;
+        return featureAllDone;
+      });
+
+      const svc = createServiceWithMocks();
+      await svc.executeFeature('/test/project', 'feature-1', false, false, undefined, {
+        continuationPrompt: 'Continue',
+        _calledInternally: true,
+      });
+
+      // Should have called runAgentFn twice: initial + one retry
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(2);
+
+      // The retry call should contain continuation prompt about incomplete tasks
+      const retryCallArgs = mockRunAgentFn.mock.calls[1];
+      expect(retryCallArgs[2]).toContain('Continue Implementation - Incomplete Tasks');
+      expect(retryCallArgs[2]).toContain('T002');
+      expect(retryCallArgs[2]).toContain('T003');
+
+      // Should have emitted a progress event about retrying
+      expect(mockEventBus.emitAutoModeEvent).toHaveBeenCalledWith(
+        'auto_mode_progress',
+        expect.objectContaining({
+          featureId: 'feature-1',
+          content: expect.stringContaining('Re-running to complete tasks'),
+        })
+      );
+    });
+
+    it('respects maximum retry attempts', async () => {
+      const featureAlwaysPending: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'pending', description: 'Second task' },
+          ],
+          tasksCompleted: 1,
+        },
+      };
+
+      // Always return feature with pending tasks (agent never completes T002)
+      mockLoadFeatureFn = vi.fn().mockResolvedValue(featureAlwaysPending);
+
+      const svc = createServiceWithMocks();
+      await svc.executeFeature('/test/project', 'feature-1', false, false, undefined, {
+        continuationPrompt: 'Continue',
+        _calledInternally: true,
+      });
+
+      // Initial run + 3 retry attempts = 4 total
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(4);
+
+      // Should still set final status even with incomplete tasks
+      expect(mockUpdateFeatureStatusFn).toHaveBeenCalledWith(
+        '/test/project',
+        'feature-1',
+        'verified'
+      );
+    });
+
+    it('stops retrying when abort signal is triggered', async () => {
+      const featureWithPendingTasks: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'pending', description: 'Second task' },
+          ],
+          tasksCompleted: 1,
+        },
+      };
+
+      mockLoadFeatureFn = vi.fn().mockResolvedValue(featureWithPendingTasks);
+
+      // Simulate abort after first agent run
+      let runCount = 0;
+      const capturedAbortController = { current: null as AbortController | null };
+      mockRunAgentFn = vi.fn().mockImplementation((_wd, _fid, _prompt, abortCtrl) => {
+        capturedAbortController.current = abortCtrl;
+        runCount++;
+        if (runCount >= 1) {
+          // Abort after first run
+          abortCtrl.abort();
+        }
+        return Promise.resolve();
+      });
+
+      const svc = createServiceWithMocks();
+      await svc.executeFeature('/test/project', 'feature-1', false, false, undefined, {
+        continuationPrompt: 'Continue',
+        _calledInternally: true,
+      });
+
+      // Should only have the initial run, then abort prevents retries
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-runs agent for in_progress tasks (not just pending)', async () => {
+      const featureWithInProgressTask: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'in_progress', description: 'Second task' },
+          ],
+          tasksCompleted: 1,
+          currentTaskId: 'T002',
+        },
+      };
+
+      const featureAllDone: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'completed', description: 'Second task' },
+          ],
+          tasksCompleted: 2,
+        },
+      };
+
+      let loadCallCount = 0;
+      mockLoadFeatureFn = vi.fn().mockImplementation(() => {
+        loadCallCount++;
+        if (loadCallCount <= 2) return featureWithInProgressTask;
+        return featureAllDone;
+      });
+
+      const svc = createServiceWithMocks();
+      await svc.executeFeature('/test/project', 'feature-1', false, false, undefined, {
+        continuationPrompt: 'Continue',
+        _calledInternally: true,
+      });
+
+      // Should have retried for the in_progress task
+      expect(mockRunAgentFn).toHaveBeenCalledTimes(2);
+
+      // The retry prompt should mention the in_progress task
+      const retryCallArgs = mockRunAgentFn.mock.calls[1];
+      expect(retryCallArgs[2]).toContain('T002');
+      expect(retryCallArgs[2]).toContain('in_progress');
+    });
+
+    it('uses planningMode skip and no plan approval for retry runs', async () => {
+      const featureWithPendingTasks: Feature = {
+        ...testFeature,
+        planningMode: 'full',
+        requirePlanApproval: true,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'pending', description: 'Second task' },
+          ],
+          tasksCompleted: 1,
+        },
+      };
+
+      const featureAllDone: Feature = {
+        ...testFeature,
+        planSpec: {
+          status: 'approved',
+          content: 'Plan',
+          tasks: [
+            { id: 'T001', title: 'Task 1', status: 'completed', description: 'First task' },
+            { id: 'T002', title: 'Task 2', status: 'completed', description: 'Second task' },
+          ],
+          tasksCompleted: 2,
+        },
+      };
+
+      let loadCallCount = 0;
+      mockLoadFeatureFn = vi.fn().mockImplementation(() => {
+        loadCallCount++;
+        if (loadCallCount <= 2) return featureWithPendingTasks;
+        return featureAllDone;
+      });
+
+      const svc = createServiceWithMocks();
+      await svc.executeFeature('/test/project', 'feature-1', false, false, undefined, {
+        continuationPrompt: 'Continue',
+        _calledInternally: true,
+      });
+
+      // The retry agent call should use planningMode: 'skip' and requirePlanApproval: false
+      const retryCallArgs = mockRunAgentFn.mock.calls[1];
+      const retryOptions = retryCallArgs[7]; // options object
+      expect(retryOptions.planningMode).toBe('skip');
+      expect(retryOptions.requirePlanApproval).toBe(false);
+    });
+  });
+
   describe('executeFeature - error handling', () => {
     it('classifies and emits error event', async () => {
       const testError = new Error('Test error');

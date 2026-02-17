@@ -270,6 +270,84 @@ ${feature.spec}
         }
       );
 
+      // Check for incomplete tasks after agent execution.
+      // The agent may have finished early (hit max turns, decided it was done, etc.)
+      // while tasks are still pending. If so, re-run the agent to complete remaining tasks.
+      const MAX_TASK_RETRY_ATTEMPTS = 3;
+      let taskRetryAttempts = 0;
+      while (!abortController.signal.aborted && taskRetryAttempts < MAX_TASK_RETRY_ATTEMPTS) {
+        const currentFeature = await this.loadFeatureFn(projectPath, featureId);
+        if (!currentFeature?.planSpec?.tasks) break;
+
+        const pendingTasks = currentFeature.planSpec.tasks.filter(
+          (t) => t.status === 'pending' || t.status === 'in_progress'
+        );
+        if (pendingTasks.length === 0) break;
+
+        taskRetryAttempts++;
+        const totalTasks = currentFeature.planSpec.tasks.length;
+        const completedTasks = currentFeature.planSpec.tasks.filter(
+          (t) => t.status === 'completed'
+        ).length;
+        logger.info(
+          `[executeFeature] Feature ${featureId} has ${pendingTasks.length} incomplete tasks (${completedTasks}/${totalTasks} completed). Re-running agent (attempt ${taskRetryAttempts}/${MAX_TASK_RETRY_ATTEMPTS})`
+        );
+
+        this.eventBus.emitAutoModeEvent('auto_mode_progress', {
+          featureId,
+          branchName: feature.branchName ?? null,
+          content: `Agent finished with ${pendingTasks.length} tasks remaining. Re-running to complete tasks (attempt ${taskRetryAttempts}/${MAX_TASK_RETRY_ATTEMPTS})...`,
+          projectPath,
+        });
+
+        // Build a continuation prompt that tells the agent to finish remaining tasks
+        const remainingTasksList = pendingTasks
+          .map((t) => `- ${t.id}: ${t.description} (${t.status})`)
+          .join('\n');
+
+        const continuationPrompt = `## Continue Implementation - Incomplete Tasks
+
+The previous agent session ended before all tasks were completed. Please continue implementing the remaining tasks.
+
+**Completed:** ${completedTasks}/${totalTasks} tasks
+**Remaining tasks:**
+${remainingTasksList}
+
+Please continue from where you left off and complete all remaining tasks. Use the same [TASK_START:ID] and [TASK_COMPLETE:ID] markers for each task.`;
+
+        await this.runAgentFn(
+          workDir,
+          featureId,
+          continuationPrompt,
+          abortController,
+          projectPath,
+          undefined,
+          model,
+          {
+            projectPath,
+            planningMode: 'skip',
+            requirePlanApproval: false,
+            systemPrompt: combinedSystemPrompt || undefined,
+            autoLoadClaudeMd,
+            thinkingLevel: feature.thinkingLevel,
+            branchName: feature.branchName ?? null,
+          }
+        );
+      }
+
+      // Log if tasks are still incomplete after retry attempts
+      if (taskRetryAttempts >= MAX_TASK_RETRY_ATTEMPTS) {
+        const finalFeature = await this.loadFeatureFn(projectPath, featureId);
+        const stillPending = finalFeature?.planSpec?.tasks?.filter(
+          (t) => t.status === 'pending' || t.status === 'in_progress'
+        );
+        if (stillPending && stillPending.length > 0) {
+          logger.warn(
+            `[executeFeature] Feature ${featureId} still has ${stillPending.length} incomplete tasks after ${MAX_TASK_RETRY_ATTEMPTS} retry attempts. Moving to final status.`
+          );
+        }
+      }
+
       const pipelineConfig = await pipelineService.getPipelineConfig(projectPath);
       const excludedStepIds = new Set(feature.excludedPipelineSteps || []);
       const sortedSteps = [...(pipelineConfig?.steps || [])]
@@ -300,6 +378,13 @@ ${feature.spec}
       await this.updateFeatureStatusFn(projectPath, featureId, finalStatus);
       this.recordSuccessFn();
 
+      // Check final task completion state for accurate reporting
+      const completedFeature = await this.loadFeatureFn(projectPath, featureId);
+      const totalTasks = completedFeature?.planSpec?.tasks?.length ?? 0;
+      const completedTasks =
+        completedFeature?.planSpec?.tasks?.filter((t) => t.status === 'completed').length ?? 0;
+      const hasIncompleteTasks = totalTasks > 0 && completedTasks < totalTasks;
+
       try {
         const outputPath = path.join(getFeatureDir(projectPath, featureId), 'agent-output.md');
         let agentOutput = '';
@@ -326,12 +411,18 @@ ${feature.spec}
         /* learnings recording failed */
       }
 
+      const elapsedSeconds = Math.round((Date.now() - tempRunningFeature.startTime) / 1000);
+      let completionMessage = `Feature completed in ${elapsedSeconds}s`;
+      if (finalStatus === 'verified') completionMessage += ' - auto-verified';
+      if (hasIncompleteTasks)
+        completionMessage += ` (${completedTasks}/${totalTasks} tasks completed)`;
+
       this.eventBus.emitAutoModeEvent('auto_mode_feature_complete', {
         featureId,
         featureName: feature.title,
         branchName: feature.branchName ?? null,
         passes: true,
-        message: `Feature completed in ${Math.round((Date.now() - tempRunningFeature.startTime) / 1000)}s${finalStatus === 'verified' ? ' - auto-verified' : ''}`,
+        message: completionMessage,
         projectPath,
         model: tempRunningFeature.model,
         provider: tempRunningFeature.provider,

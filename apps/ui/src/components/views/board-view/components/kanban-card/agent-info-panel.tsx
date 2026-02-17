@@ -164,13 +164,17 @@ export const AgentInfoPanel = memo(function AgentInfoPanel({
       const currentTaskId = planSpec.currentTaskId;
 
       return planSpec.tasks.map((task: ParsedTask, index: number) => {
-        // If the feature is done (waiting_approval/verified), all tasks are completed
-        // This is a defensive UI-side check: the server should have already finalized
-        // task statuses, but stale data from before the fix could still show spinners
+        // When feature is finished (waiting_approval/verified), finalize task display:
+        // - in_progress tasks → completed (agent was working on them when it finished)
+        // - pending tasks stay pending (they were never started)
+        // - completed tasks stay completed
+        // This matches server-side behavior in feature-state-manager.ts
         if (isFeatureFinished) {
+          const finalStatus =
+            task.status === 'in_progress' || task.status === 'failed' ? 'completed' : task.status;
           return {
             content: task.description,
-            status: 'completed' as const,
+            status: (finalStatus || 'completed') as 'pending' | 'in_progress' | 'completed',
           };
         }
 
