@@ -12,7 +12,7 @@ import type { Feature, FeatureSchedule } from '@automaker/types';
 import { createLogger } from '@automaker/utils';
 import type { EventEmitter } from '../lib/events.js';
 import { FeatureLoader } from './feature-loader.js';
-import { AutoModeService } from './auto-mode-service.js';
+import { AutoModeServiceCompat } from './auto-mode/index.js';
 import type { SettingsService } from './settings-service.js';
 
 const logger = createLogger('SchedulerService');
@@ -23,7 +23,7 @@ const CHECK_INTERVAL_MS = 60 * 1000;
 export class SchedulerService {
   private events: EventEmitter;
   private featureLoader: FeatureLoader;
-  private autoModeService: AutoModeService;
+  private autoModeService: AutoModeServiceCompat;
   private settingsService: SettingsService;
   private checkInterval: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
@@ -31,7 +31,7 @@ export class SchedulerService {
   constructor(
     events: EventEmitter,
     featureLoader: FeatureLoader,
-    autoModeService: AutoModeService,
+    autoModeService: AutoModeServiceCompat,
     settingsService: SettingsService
   ) {
     this.events = events;
@@ -201,7 +201,7 @@ export class SchedulerService {
       // Execute in background - don't await
       this.autoModeService
         .executeFeature(projectPath, feature.id, useWorktrees, false)
-        .catch((err) => {
+        .catch((err: unknown) => {
           logger.error(`Scheduler: Feature ${feature.id} execution error:`, err);
         });
     } catch (err) {

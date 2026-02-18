@@ -267,9 +267,11 @@ export class RecoveryService {
             feature.status === 'in_progress' ||
             (feature.status && feature.status.startsWith('pipeline_'))
           ) {
-            (await this.contextExists(projectPath, feature.id))
-              ? featuresWithContext.push(feature)
-              : featuresWithoutContext.push(feature);
+            if (await this.contextExists(projectPath, feature.id)) {
+              featuresWithContext.push(feature);
+            } else {
+              featuresWithoutContext.push(feature);
+            }
           }
         }
       }

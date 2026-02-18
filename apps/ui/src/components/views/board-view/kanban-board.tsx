@@ -315,7 +315,7 @@ export function KanbanBoard({
       scheduledFeatures.length > 0 ||
       ['backlog', 'in_progress', 'waiting_approval', 'verified'].some((colId) => {
         const features = getColumnFeatures(colId as ColumnId);
-        return features.some((f) => f.schedule?.enabled);
+        return features.some((f) => (f.schedule as { enabled?: boolean } | undefined)?.enabled);
       });
 
     // Hide scheduled column if there are no scheduled features

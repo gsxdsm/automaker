@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { MobileTerminalControls } from './mobile-terminal-controls';
 import { useAppStore, DEFAULT_KEYBOARD_SHORTCUTS, type KeyboardShortcuts } from '@/store/app-store';
 import { useShallow } from 'zustand/react/shallow';
 import { matchesShortcutWithCode } from '@/hooks/use-keyboard-shortcuts';
@@ -154,6 +155,20 @@ export function TerminalPanel({
   const [searchQuery, setSearchQuery] = useState('');
   const showSearchRef = useRef(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    }
+  }, []);
+
+  const handleMobileInput = useCallback((data: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'input', data }));
+    }
+  }, []);
 
   const [connectionStatus, setConnectionStatus] = useState<
     'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'auth_failed'
@@ -2165,6 +2180,9 @@ export function TerminalPanel({
           <span className="text-xs">Bottom</span>
         </Button>
       )}
+
+      {/* Mobile controls */}
+      {isTouchDevice && <MobileTerminalControls onInput={handleMobileInput} />}
 
       {/* Context menu */}
       {contextMenu && (

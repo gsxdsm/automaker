@@ -462,6 +462,7 @@ export interface AppActions {
   ) => void;
   addRunningTask: (projectId: string, branchName: string | null, taskId: string) => void;
   removeRunningTask: (projectId: string, branchName: string | null, taskId: string) => void;
+  removeRunningTaskFromAllWorktrees: (projectId: string, taskId: string) => void;
   clearRunningTasks: (projectId: string, branchName: string | null) => void;
   getAutoModeState: (
     projectId: string,

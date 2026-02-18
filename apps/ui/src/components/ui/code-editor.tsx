@@ -583,7 +583,6 @@ export function CodeEditor({
     );
 
     return exts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     language,
     mobile,

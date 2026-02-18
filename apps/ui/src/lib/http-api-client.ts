@@ -45,7 +45,12 @@ import type {
   Notification,
 } from '@automaker/types';
 import type { Message, SessionListItem } from '@/types/electron';
-import type { ClaudeUsageResponse, CodexUsageResponse, GeminiUsage } from '@/store/app-store';
+import type {
+  ClaudeUsageResponse,
+  CodexUsageResponse,
+  ZaiUsageResponse,
+  GeminiUsage,
+} from '@/store/app-store';
 import type { WorktreeAPI, GitAPI, ModelDefinition, ProviderStatus } from '@/types/electron';
 import type { ModelId, ThinkingLevel, ReasoningEffort, Feature } from '@automaker/types';
 import { getGlobalFileBrowser } from '@/contexts/file-browser-context';
@@ -1789,35 +1794,7 @@ export class HttpApiClient implements ElectronAPI {
       error?: string;
     }> => this.get('/api/zai/status'),
 
-    getUsage: (): Promise<{
-      quotaLimits?: {
-        tokens?: {
-          limitType: string;
-          limit: number;
-          used: number;
-          remaining: number;
-          usedPercent: number;
-          nextResetTime: number;
-        };
-        time?: {
-          limitType: string;
-          limit: number;
-          used: number;
-          remaining: number;
-          usedPercent: number;
-          nextResetTime: number;
-        };
-        planType: string;
-      } | null;
-      usageDetails?: Array<{
-        modelId: string;
-        used: number;
-        limit: number;
-      }>;
-      lastUpdated: string;
-      error?: string;
-      message?: string;
-    }> => this.get('/api/zai/usage'),
+    getUsage: (): Promise<ZaiUsageResponse> => this.get('/api/zai/usage'),
 
     configure: (
       apiToken?: string,

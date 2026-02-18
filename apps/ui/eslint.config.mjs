@@ -65,11 +65,14 @@ const eslintConfig = defineConfig([
         Element: 'readonly',
         SVGElement: 'readonly',
         SVGSVGElement: 'readonly',
+        // DOM Node Types
+        Node: 'readonly',
         // Event Types
         Event: 'readonly',
         KeyboardEvent: 'readonly',
         DragEvent: 'readonly',
         PointerEvent: 'readonly',
+        TouchEvent: 'readonly',
         CustomEvent: 'readonly',
         ClipboardEvent: 'readonly',
         WheelEvent: 'readonly',
